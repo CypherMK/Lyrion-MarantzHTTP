@@ -1,6 +1,7 @@
 # Lyrion MarantzHTTP
 
 A plugin for Lyrion Music Server (LMS) to control Marantz and Denon receivers via HTTP.
+Community thread: https://forums.lyrion.org/forum/user-forums/3rd-party-software/1835219-announce-marantzhttp
 
 ## Installation
 
