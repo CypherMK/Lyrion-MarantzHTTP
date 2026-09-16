@@ -9,6 +9,7 @@
       <desc lang="EN">Bedien Marantz/Denon receivers via HTTP.</desc>
       <creator>CypherMK</creator>
       <url>https://github.com/CypherMK/Lyrion-MarantzHTTP/releases/download/v1.3/MarantzHTTP.zip</url>
+      <sha>b14a3029303ad640e1013d38e580157d9c32b5cb</sha>    
     </plugin>
   </plugins>
 </extensions>
