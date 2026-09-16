@@ -4,7 +4,7 @@
     <title lang="EN">MarantzHTTP Repository</title>
   </details>
   <plugins>
-    <plugin name="MarantzHTTP" version="1.2" minTarget="8.0" maxTarget="*">
+    <plugin name="MarantzAV" version="1.2" minTarget="8.0" maxTarget="*">
       <title lang="EN">Marantz HTTP Control</title>
       <desc lang="EN">Bedien Marantz/Denon receivers via HTTP.</desc>
       <creator>CypherMK</creator>
