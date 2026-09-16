@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<extension>
+  <name>MarantzHTTP</name>
+  <module>Plugins::MarantzHTTP::Plugin</module>
+  <version>1.3</version>
+  <description>Bedien het Marantz volume direct via HTTP.</description>
+  <creator>Custom</creator>
+  <email>none@none.com</email>
+  <defaultState>enabled</defaultState>
+  <type>2</type>
+  <optionsURL>plugins/MarantzHTTP/settings/basic.html</optionsURL>
+  <targetApplication>
+    <id>SqueezeCenter</id>
+    <minVersion>7.6</minVersion>
+    <maxVersion>*</maxVersion>
+  </targetApplication>
+</extension>

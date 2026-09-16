@@ -1,0 +1,119 @@
+PLUGIN_MARANTZHTTP
+	EN	MarantzHTTP
+	NL	MarantzHTTP
+	DE	MarantzHTTP
+	FR	MarantzHTTP
+	ES	MarantzHTTP
+	IT	MarantzHTTP
+
+PLUGIN_MARANTZHTTP_IP
+	EN	Marantz IP address
+	NL	Marantz IP-adres
+	DE	Marantz IP-Adresse
+	FR	Adresse IP Marantz
+	ES	Dirección IP de Marantz
+	IT	Indirizzo IP Marantz
+
+PLUGIN_MARANTZHTTP_IP_DESC
+	EN	Example: 192.168.1.93
+	NL	Bijvoorbeeld: 192.168.1.93
+	DE	Zum Beispiel: 192.168.1.93
+	FR	Exemple : 192.168.1.93
+	ES	Ejemplo: 192.168.1.93
+	IT	Esempio: 192.168.1.93
+
+PLUGIN_MARANTZHTTP_PORT
+	EN	Marantz Port
+	NL	Marantz Poort
+	DE	Marantz Port
+	FR	Port Marantz
+	ES	Puerto Marantz
+	IT	Porta Marantz
+
+PLUGIN_MARANTZHTTP_PORT_DESC
+	EN	Default: 8080
+	NL	Standaard: 8080
+	DE	Standard: 8080
+	FR	Défaut : 8080
+	ES	Por defecto: 8080
+	IT	Predefinito: 8080
+
+PLUGIN_MARANTZHTTP_MAC_Z1
+	EN	MAC address Zone 1
+	NL	MAC-adres Zone 1
+	DE	MAC-Adresse Zone 1
+	FR	Adresse MAC Zone 1
+	ES	Dirección MAC Zona 1
+	IT	Indirizzo MAC Zona 1
+
+PLUGIN_MARANTZHTTP_MAC_Z1_DESC
+	EN	MAC address of the Zone 1 player
+	NL	MAC-adres van de Zone 1 speler
+	DE	MAC-Adresse des Zone 1 Players
+	FR	Adresse MAC du lecteur Zone 1
+	ES	Dirección MAC del reproductor de la Zona 1
+	IT	Indirizzo MAC del lettore Zona 1
+
+PLUGIN_MARANTZHTTP_MAC_Z2
+	EN	MAC address Zone 2
+	NL	MAC-adres Zone 2
+	DE	MAC-Adresse Zone 2
+	FR	Adresse MAC Zone 2
+	ES	Dirección MAC Zona 2
+	IT	Indirizzo MAC Zona 2
+
+PLUGIN_MARANTZHTTP_MAC_Z2_DESC
+	EN	MAC address of the Zone 2 player
+	NL	MAC-adres van de Zone 2 speler
+	DE	MAC-Adresse des Zone 2 Players
+	FR	Adresse MAC du lecteur Zone 2
+	ES	Dirección MAC del reproductor de la Zona 2
+	IT	Indirizzo MAC del lettore Zona 2
+
+PLUGIN_MARANTZHTTP_VOLSTEP
+	EN	Volume step size
+	NL	Volumestap grootte
+	DE	Lautstärkeschrittweite
+	FR	Taille du pas de volume
+	ES	Tamaño del paso de volumen
+	IT	Dimensione del passo di volume
+
+PLUGIN_MARANTZHTTP_VOLSTEP_DESC
+	EN	Round the volume to this step (e.g. 1, 2, or 5)
+	NL	Rond het volume af op deze stap (bijv. 1, 2 of 5)
+	DE	Runden Sie die Lautstärke auf diesen Schritt (z.B. 1, 2 oder 5)
+	FR	Arrondir le volume (ex. 1, 2 ou 5)
+	ES	Redondear el volumen a este paso (ej. 1, 2 o 5)
+	IT	Arrotondare il volume a questo passo (es. 1, 2 o 5)
+
+PLUGIN_MARANTZHTTP_WEBHOOK_PLAY
+	EN	Webhook URL (Play)
+	NL	Webhook URL (Afspelen)
+	DE	Webhook URL (Abspielen)
+	FR	URL Webhook (Lecture)
+	ES	URL de Webhook (Reproducir)
+	IT	URL Webhook (Riproduci)
+
+PLUGIN_MARANTZHTTP_WEBHOOK_PLAY_DESC
+	EN	HTTP GET request on Play. E.g.: http://node-red:1880/play
+	NL	HTTP GET verzoek bij Afspelen. Bijv: http://192.168.x.x:1880/play
+	DE	HTTP GET Anfrage beim Abspielen.
+	FR	Requête HTTP GET lors de la lecture.
+	ES	Solicitud HTTP GET al reproducir.
+	IT	Richiesta HTTP GET in riproduzione.
+
+PLUGIN_MARANTZHTTP_WEBHOOK_PAUSE
+	EN	Webhook URL (Pause/Stop)
+	NL	Webhook URL (Pauze/Stop)
+	DE	Webhook URL (Pause/Stopp)
+	FR	URL Webhook (Pause/Arrêt)
+	ES	URL de Webhook (Pausa/Detener)
+	IT	URL Webhook (Pausa/Stop)
+
+PLUGIN_MARANTZHTTP_WEBHOOK_PAUSE_DESC
+	EN	HTTP GET request on Pause/Stop. E.g.: http://node-red:1880/pause
+	NL	HTTP GET verzoek bij Pauze/Stop. Bijv: http://192.168.x.x:1880/pause
+	DE	HTTP GET Anfrage beim Pausieren/Stoppen.
+	FR	Requête HTTP GET lors de la pause/arrêt.
+	ES	Solicitud HTTP GET al pausar/detener.
+	IT	Richiesta HTTP GET in pausa/stop.

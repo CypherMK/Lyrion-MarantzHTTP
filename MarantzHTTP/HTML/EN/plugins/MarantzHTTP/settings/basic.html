@@ -1,0 +1,14 @@
+[% PROCESS settings/header.html %]
+    [% WRAPPER setting title="PLUGIN_MARANTZHTTP_IP" desc="PLUGIN_MARANTZHTTP_IP_DESC" %]
+        <input type="text" class="stdedit" name="pref_ip" id="ip" value="[% prefs.pref_ip %]" size="20">
+    [% END %]
+    [% WRAPPER setting title="PLUGIN_MARANTZHTTP_PORT" desc="PLUGIN_MARANTZHTTP_PORT_DESC" %]
+        <input type="text" class="stdedit" name="pref_port" id="port" value="[% prefs.pref_port %]" size="10">
+    [% END %]
+    [% WRAPPER setting title="PLUGIN_MARANTZHTTP_MAC_Z1" desc="PLUGIN_MARANTZHTTP_MAC_Z1_DESC" %]
+        <input type="text" class="stdedit" name="pref_mac_z1" id="mac_z1" value="[% prefs.pref_mac_z1 %]" size="20">
+    [% END %]
+    [% WRAPPER setting title="PLUGIN_MARANTZHTTP_MAC_Z2" desc="PLUGIN_MARANTZHTTP_MAC_Z2_DESC" %]
+        <input type="text" class="stdedit" name="pref_mac_z2" id="mac_z2" value="[% prefs.pref_mac_z2 %]" size="20">
+    [% END %]
+[% PROCESS settings/footer.html %]
