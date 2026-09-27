@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<extension>
+  <name>MarantzHTTP</name>
+  <module>Plugins::MarantzHTTP::Plugin</module>
+  <version>1.6</version>
+  <description>Control Marantz and Denon receiver volume via HTTP with bidirectional sync.</description>
+  <creator>CypherMK</creator>
+  <email>none@none.com</email>
+  <defaultState>enabled</defaultState>
+  <type>2</type>
+  <optionsURL>plugins/MarantzHTTP/settings/basic.html</optionsURL>
+  <targetApplication>
+    <id>SqueezeCenter</id>
+    <minVersion>7.6</minVersion>
+    <maxVersion>*</maxVersion>
+  </targetApplication>
+</extension>
