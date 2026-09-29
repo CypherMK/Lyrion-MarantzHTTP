@@ -4,12 +4,12 @@
     <title lang="EN">MarantzHTTP Repository</title>
   </details>
   <plugins>
-    <plugin name="MarantzHTTP" version="1.6" minTarget="8.0" maxTarget="*">
+    <plugin name="MarantzHTTP" version="1.7" minTarget="8.0" maxTarget="*">
       <title lang="EN">Marantz HTTP Control</title>
       <desc lang="EN">Bedien Marantz/Denon receivers via HTTP.</desc>
       <creator>CypherMK</creator>
-      <url>https://github.com/CypherMK/Lyrion-MarantzHTTP/releases/download/v1.6/MarantzHTTP.zip</url>
-      <sha>6577ddabaefd6d0b16cd2ecc61cc7def43ac0ded</sha>    
+      <url>https://github.com/CypherMK/Lyrion-MarantzHTTP/releases/download/v1.7/MarantzHTTP.zip</url>
+      <sha>9fb73dca8b984aa8d9bcd4c6852ab3b7861b254c</sha>    
     </plugin>
   </plugins>
 </extensions>
