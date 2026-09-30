@@ -12,12 +12,86 @@
         <input type="text" class="stdedit" name="pref_mac_z1" id="mac_z1" value="[% prefs.pref_mac_z1 %]" size="20">
     [% END %]
 
+    [% WRAPPER setting title="PLUGIN_MARANTZHTTP_POWER_ON_Z1" desc="PLUGIN_MARANTZHTTP_POWER_ON_Z1_DESC" %]
+        <input name="pref_power_on_z1" id="power_on_z1" value="1" type="checkbox" [% IF prefs.pref_power_on_z1 %] checked [% END %]>
+    [% END %]
+
+    [% WRAPPER setting title="PLUGIN_MARANTZHTTP_SOURCE_Z1" desc="PLUGIN_MARANTZHTTP_SOURCE_Z1_DESC" %]
+        <select class="stdedit" name="pref_source_z1" id="source_z1">
+            [% FOREACH src = sources_z1 %]
+                <option value="[% src.value %]" [% IF prefs.pref_source_z1 == src.value %]selected[% END %]>[% src.name %]</option>
+            [% END %]
+            [% UNLESS sources_z1.size %]
+                <option value="SISAT/CBL" [% IF prefs.pref_source_z1 == 'SISAT/CBL' %]selected[% END %]>CBL/SAT</option>
+                <option value="SIMEDIA_PLAYER" [% IF prefs.pref_source_z1 == 'SIMEDIA_PLAYER' %]selected[% END %]>Media Player</option>
+                <option value="SICD" [% IF prefs.pref_source_z1 == 'SICD' %]selected[% END %]>CD</option>
+                <option value="SIAUX1" [% IF prefs.pref_source_z1 == 'SIAUX1' %]selected[% END %]>AUX 1</option>
+                <option value="SIBD" [% IF prefs.pref_source_z1 == 'SIBD' %]selected[% END %]>Blu-ray</option>
+                <option value="SITV" [% IF prefs.pref_source_z1 == 'SITV' %]selected[% END %]>TV Audio</option>
+                <option value="SIHEOS" [% IF prefs.pref_source_z1 == 'SIHEOS' %]selected[% END %]>HEOS / Network</option>
+                <option value="SIGAME" [% IF prefs.pref_source_z1 == 'SIGAME' %]selected[% END %]>Game</option>
+            [% END %]
+        </select>
+    [% END %]
+
+    [% WRAPPER setting title="PLUGIN_MARANTZHTTP_SET_VOLUME_ON_POWER_Z1" desc="PLUGIN_MARANTZHTTP_SET_VOLUME_ON_POWER_Z1_DESC" %]
+        <input name="pref_set_volume_on_power_z1" id="set_volume_on_power_z1" value="1" type="checkbox" [% IF prefs.pref_set_volume_on_power_z1 %] checked [% END %]>
+    [% END %]
+
+    [% WRAPPER setting title="PLUGIN_MARANTZHTTP_POWER_VOLUME_Z1" desc="PLUGIN_MARANTZHTTP_POWER_VOLUME_Z1_DESC" %]
+        <input type="number" min="0" max="98" class="stdedit" name="pref_power_volume_z1" id="power_volume_z1" value="[% prefs.pref_power_volume_z1 || 40 %]" size="5">
+    [% END %]
+
+    [% WRAPPER setting title="PLUGIN_MARANTZHTTP_PAUSE_ON_OFF_OR_SOURCE_Z1" desc="PLUGIN_MARANTZHTTP_PAUSE_ON_OFF_OR_SOURCE_Z1_DESC" %]
+        <input name="pref_pause_on_off_or_source_z1" id="pause_on_off_or_source_z1" value="1" type="checkbox" [% IF prefs.pref_pause_on_off_or_source_z1 %] checked [% END %]>
+    [% END %]
+
+    [% WRAPPER setting title="PLUGIN_MARANTZHTTP_RESUME_ON_SOURCE_Z1" desc="PLUGIN_MARANTZHTTP_RESUME_ON_SOURCE_Z1_DESC" %]
+        <input name="pref_resume_on_source_z1" id="resume_on_source_z1" value="1" type="checkbox" [% IF prefs.pref_resume_on_source_z1 %] checked [% END %]>
+    [% END %]
+
     [% WRAPPER setting title="PLUGIN_MARANTZHTTP_MAC_Z2" desc="PLUGIN_MARANTZHTTP_MAC_Z2_DESC" %]
         <input type="text" class="stdedit" name="pref_mac_z2" id="mac_z2" value="[% prefs.pref_mac_z2 %]" size="20">
     [% END %]
 
+    [% WRAPPER setting title="PLUGIN_MARANTZHTTP_POWER_ON_Z2" desc="PLUGIN_MARANTZHTTP_POWER_ON_Z2_DESC" %]
+        <input name="pref_power_on_z2" id="power_on_z2" value="1" type="checkbox" [% IF prefs.pref_power_on_z2 %] checked [% END %]>
+    [% END %]
+
+    [% WRAPPER setting title="PLUGIN_MARANTZHTTP_SOURCE_Z2" desc="PLUGIN_MARANTZHTTP_SOURCE_Z2_DESC" %]
+        <select class="stdedit" name="pref_source_z2" id="source_z2">
+            [% FOREACH src = sources_z2 %]
+                <option value="[% src.value %]" [% IF prefs.pref_source_z2 == src.value %]selected[% END %]>[% src.name %]</option>
+            [% END %]
+            [% UNLESS sources_z2.size %]
+                <option value="Z2NET" [% IF prefs.pref_source_z2 == 'Z2NET' %]selected[% END %]>HEOS / Network</option>
+                <option value="Z2SAT/CBL" [% IF prefs.pref_source_z2 == 'Z2SAT/CBL' %]selected[% END %]>CBL/SAT</option>
+                <option value="Z2MEDIA_PLAYER" [% IF prefs.pref_source_z2 == 'Z2MEDIA_PLAYER' %]selected[% END %]>Media Player</option>
+                <option value="Z2CD" [% IF prefs.pref_source_z2 == 'Z2CD' %]selected[% END %]>CD</option>
+                <option value="Z2AUX1" [% IF prefs.pref_source_z2 == 'Z2AUX1' %]selected[% END %]>AUX 1</option>
+                <option value="Z2SOURCE" [% IF prefs.pref_source_z2 == 'Z2SOURCE' %]selected[% END %]>Follow Main Zone</option>
+            [% END %]
+        </select>
+    [% END %]
+
+    [% WRAPPER setting title="PLUGIN_MARANTZHTTP_SET_VOLUME_ON_POWER_Z2" desc="PLUGIN_MARANTZHTTP_SET_VOLUME_ON_POWER_Z2_DESC" %]
+        <input name="pref_set_volume_on_power_z2" id="set_volume_on_power_z2" value="1" type="checkbox" [% IF prefs.pref_set_volume_on_power_z2 %] checked [% END %]>
+    [% END %]
+
+    [% WRAPPER setting title="PLUGIN_MARANTZHTTP_POWER_VOLUME_Z2" desc="PLUGIN_MARANTZHTTP_POWER_VOLUME_Z2_DESC" %]
+        <input type="number" min="0" max="98" class="stdedit" name="pref_power_volume_z2" id="power_volume_z2" value="[% prefs.pref_power_volume_z2 || 30 %]" size="5">
+    [% END %]
+
+    [% WRAPPER setting title="PLUGIN_MARANTZHTTP_PAUSE_ON_OFF_OR_SOURCE_Z2" desc="PLUGIN_MARANTZHTTP_PAUSE_ON_OFF_OR_SOURCE_Z2_DESC" %]
+        <input name="pref_pause_on_off_or_source_z2" id="pause_on_off_or_source_z2" value="1" type="checkbox" [% IF prefs.pref_pause_on_off_or_source_z2 %] checked [% END %]>
+    [% END %]
+
+    [% WRAPPER setting title="PLUGIN_MARANTZHTTP_RESUME_ON_SOURCE_Z2" desc="PLUGIN_MARANTZHTTP_RESUME_ON_SOURCE_Z2_DESC" %]
+        <input name="pref_resume_on_source_z2" id="resume_on_source_z2" value="1" type="checkbox" [% IF prefs.pref_resume_on_source_z2 %] checked [% END %]>
+    [% END %]
+
     [% WRAPPER setting title="PLUGIN_MARANTZHTTP_SYNC_VOLUME" desc="PLUGIN_MARANTZHTTP_SYNC_VOLUME_DESC" %]
-        <input name="pref_sync_volume" id="sync_volume" type="checkbox" [% IF prefs.pref_sync_volume %] checked [% END %]>
+        <input name="pref_sync_volume" id="sync_volume" value="1" type="checkbox" [% IF prefs.pref_sync_volume %] checked [% END %]>
     [% END %]
 
     [% WRAPPER setting title="PLUGIN_MARANTZHTTP_POLL_INTERVAL" desc="PLUGIN_MARANTZHTTP_POLL_INTERVAL_DESC" %]
@@ -25,3 +99,4 @@
     [% END %]
 
 [% PROCESS settings/footer.html %]
+

@@ -2,8 +2,8 @@
 <extension>
   <name>MarantzHTTP</name>
   <module>Plugins::MarantzHTTP::Plugin</module>
-  <version>1.6</version>
-  <description>Control Marantz and Denon receiver volume via HTTP with bidirectional sync.</description>
+  <version>1.7.1</version>
+  <description>Control Marantz and Denon receiver volume via HTTP with bidirectional sync, automatic power-on on playlist start, input selection, and fail-safe auto-pause/auto-resume on receiver power-off or input source change.</description>
   <creator>CypherMK</creator>
   <email>none@none.com</email>
   <defaultState>enabled</defaultState>
