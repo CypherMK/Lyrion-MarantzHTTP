@@ -80,4 +80,35 @@ sub beforeRender {
     }
 }
 
+# Input sanitization before saving settings
+sub handler {
+    my ($class, $client, $params, $callback, @args) = @_;
+
+    if ($params->{'saveSettings'}) {
+        # Sanitize IP address (strip whitespace, protocol prefixes, trailing slashes)
+        if (defined $params->{'pref_ip'}) {
+            $params->{'pref_ip'} =~ s/^\s+|\s+$//g;
+            $params->{'pref_ip'} =~ s{^https?://}{}i;
+            $params->{'pref_ip'} =~ s{/.*$}{};
+        }
+
+        # Sanitize Port
+        if (defined $params->{'pref_port'}) {
+            $params->{'pref_port'} =~ s/^\s+|\s+$//g;
+            $params->{'pref_port'} =~ s/[^0-9]//g;
+            $params->{'pref_port'} = '8080' if $params->{'pref_port'} eq '';
+        }
+
+        # Sanitize MAC addresses (strip spaces)
+        if (defined $params->{'pref_mac_z1'}) {
+            $params->{'pref_mac_z1'} =~ s/^\s+|\s+$//g;
+        }
+        if (defined $params->{'pref_mac_z2'}) {
+            $params->{'pref_mac_z2'} =~ s/^\s+|\s+$//g;
+        }
+    }
+
+    return $class->SUPER::handler($client, $params, $callback, @args);
+}
+
 1;

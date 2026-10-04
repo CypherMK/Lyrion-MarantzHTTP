@@ -7,7 +7,7 @@ use Slim::Control::Request;
 use Slim::Utils::Log;
 use Slim::Utils::Prefs;
 
-our $VERSION = '1.7.8';
+our $VERSION = '1.7.9';
 
 # Initialize Lyrion / LMS Logger Category
 my $log = Slim::Utils::Log->addLogCategory({
@@ -91,6 +91,24 @@ sub _errorLog {
     }
 }
 
+# Helpers to sanitize target IP and port (handles whitespace and protocol prefixes)
+sub _getTargetIp {
+    my $ip = $prefs->get('ip');
+    return '' unless defined $ip;
+    $ip =~ s/^\s+|\s+$//g;
+    $ip =~ s{^https?://}{}i;
+    $ip =~ s{/.*$}{};
+    return $ip;
+}
+
+sub _getTargetPort {
+    my $port = $prefs->get('port');
+    return '8080' unless defined $port;
+    $port =~ s/^\s+|\s+$//g;
+    $port =~ s/[^0-9]//g;
+    return $port ne '' ? $port : '8080';
+}
+
 sub initPlugin {
     my $class = shift;
     $class->SUPER::initPlugin(@_);
@@ -110,8 +128,8 @@ sub initPlugin {
     Slim::Control::Request::subscribe(\&playTriggerCallback, [['pause']]);
     Slim::Control::Request::subscribe(\&playTriggerCallback, [['playlist'], ['play', 'open', 'load', 'loadtracks', 'loadalbum', 'resume', 'pause']]);
 
-    my $target_ip = $prefs->get('ip') || '[Not Configured]';
-    my $target_port = $prefs->get('port') || '8080';
+    my $target_ip = _getTargetIp() || '[Not Configured]';
+    my $target_port = _getTargetPort();
     _infoLog("MarantzHTTP v$VERSION initialized. Target AVR: $target_ip:$target_port");
     _debugLog("Subscriptions registered: mixer/volume, playback (play,pause,stop,newsong,open), playTrigger (play,pause,playlist:play,open,load,resume,pause)");
 
@@ -228,8 +246,8 @@ sub ensurePowerAndSource {
     return unless $client && $zone;
 
     my $client_name = eval { $client->name() } || $client->id() || 'player';
-    my $ip   = $prefs->get('ip');
-    my $port = $prefs->get('port') || '8080';
+    my $ip   = _getTargetIp();
+    my $port = _getTargetPort();
 
     unless ($ip) {
         _warnLog("[CONFIG] ensurePowerAndSource: Marantz IP address is not configured in settings. Skipping command.");
@@ -472,8 +490,8 @@ sub volumeCallback {
         $volume = 0 if $volume < 0;
         $volume = 98 if $volume > 98;
 
-        my $ip = $prefs->get('ip');
-        my $port = $prefs->get('port') || '8080';
+        my $ip = _getTargetIp();
+        my $port = _getTargetPort();
 
         unless ($ip) {
             _debugLog("[VOLUME] Marantz IP not configured, skipping volume sync for '$client_name'");
@@ -604,8 +622,8 @@ sub pollTimerCallback {
 # Volume Sync & Status Polling: Marantz -> Lyrion
 # --------------------------------------------------------------------------
 sub pollActiveMarantzZones {
-    my $ip = $prefs->get('ip');
-    my $port = $prefs->get('port') || '8080';
+    my $ip = _getTargetIp();
+    my $port = _getTargetPort();
     return unless $ip;
 
     my %active_zones;
@@ -662,16 +680,24 @@ sub _handleMarantzXmlResponse {
 
     my $client_name = eval { $client->name() } || $client->id() || 'player';
 
-    # Extract Power status (zonePower, ZonePower, Power) - Robust regex supporting attributes and multiline
+    # Extract Power status (Zone 1 vs Zone 2 scoped tags)
     my $raw_power;
-    if ($content =~ /<(?:zonePower|ZonePower|Power)[^>]*>\s*<value>([^<]+)<\/value>/si) {
+    my $power_regex = ($zone eq 'Z2')
+        ? qr/<(?:Zone2Power|zonePower|ZonePower|Power)[^>]*>\s*<value>([^<]+)<\/value>/si
+        : qr/<(?:zonePower|ZonePower|Power)[^>]*>\s*<value>([^<]+)<\/value>/si;
+
+    if ($content =~ $power_regex) {
         $raw_power = uc($1);
         $raw_power =~ s/^\s+|\s+$//g;
     }
 
-    # Extract Input Source (InputFuncSelect)
+    # Extract Input Source (Zone 1 vs Zone 2 scoped tags)
     my $raw_input;
-    if ($content =~ /<InputFuncSelect[^>]*>\s*<value>([^<]+)<\/value>/si) {
+    my $input_regex = ($zone eq 'Z2')
+        ? qr/<(?:Zone2InputFuncSelect|InputFuncSelect)[^>]*>\s*<value>([^<]+)<\/value>/si
+        : qr/<InputFuncSelect[^>]*>\s*<value>([^<]+)<\/value>/si;
+
+    if ($content =~ $input_regex) {
         $raw_input = uc($1);
         $raw_input =~ s/^\s+|\s+$//g;
     }
@@ -708,30 +734,33 @@ sub _handleMarantzXmlResponse {
     # 1. Volume Sync: Marantz -> Lyrion (Only when sync_volume is enabled & client is playing)
     # --------------------------------------------------------------------------
     if ($prefs->get('sync_volume') && $client->isPlaying()) {
-        if ($content =~ /<(?:MasterVolume|Zone2Volume|Volume)[^>]*>\s*<value>([^<]+)<\/value>/si) {
+        my $volume_regex = ($zone eq 'Z2')
+            ? qr/<(?:Zone2Volume|MasterVolume|Volume)[^>]*>\s*<value>([^<]+)<\/value>/si
+            : qr/<(?:MasterVolume|Volume)[^>]*>\s*<value>([^<]+)<\/value>/si;
+
+        if ($content =~ $volume_regex) {
             my $raw = $1;
             $raw =~ s/^\s+|\s+$//g;
             my $vol;
-
             if ($raw =~ /^-([\d\.]+)$/) {
                 # Negative dB (e.g., -45.0 dB -> 80 - 45 = 35)
                 $vol = int(80 - $1 + 0.5);
-            } elsif ($raw =~ /^[\+]?([\d\.]+)$/) {
-                # Direct numeric scale (e.g., 35, 45.5)
+            } elsif ($raw =~ /^\+([\d\.]+)$/) {
+                # Positive dB above 0dB (e.g., +2.0 dB -> 80 + 2 = 82)
+                $vol = int(80 + $1 + 0.5);
+            } elsif ($raw =~ /^([\d\.]+)$/) {
+                # Direct numeric scale (e.g., 35, 45.5, 80)
                 $vol = int($1 + 0.5);
             }
-
             if (defined $vol) {
                 $vol = 0 if $vol < 0;
-                $vol = 98 if $vol > 98;
-
+                $vol = 100 if $vol > 100;
                 my $current_vol = int($client->volume() || 0);
 
                 # Only execute command if volume has actually changed
                 if (abs($vol - $current_vol) >= 1) {
                     my $mac = lc($client->id() || '');
                     $mac =~ s/[^a-f0-9]//g;
-
                     _infoLog("[VOLUME SYNC] Marantz ($vol) -> LMS '$client_name' (was $current_vol). Updating slider.");
                     $syncing_clients{$mac} = 1;
                     $client->execute(['mixer', 'volume', $vol]);
@@ -748,7 +777,6 @@ sub _handleMarantzXmlResponse {
     # 2. Fail-Safe Auto-Pause on Receiver Power-OFF / Source Change (Playing -> Pause)
     # --------------------------------------------------------------------------
     my $pause_enabled = ($zone eq 'MV') ? $prefs->get('pause_on_off_or_source_z1') : $prefs->get('pause_on_off_or_source_z2');
-
     if ($pause_enabled && $client->isPlaying()) {
         # Grace period: do not pause within 15 seconds of starting playback/power-on or source switch
         my $now = time();
@@ -795,27 +823,24 @@ sub _handleMarantzXmlResponse {
     # Works seamlessly if AVR was in standby, switched input, or turned back on.
     # --------------------------------------------------------------------------
     my $resume_enabled = ($zone eq 'MV') ? $prefs->get('resume_on_source_z1') : $prefs->get('resume_on_source_z2');
-
     if ($resume_enabled && !$client->isPlaying()) {
         my $power_turned_on = ($prev_power eq 'STANDBY' && !$is_standby);
         my $source_switched_to_lyrion = ($prev_source ne 'UNKNOWN' && !_isSourceMatch($configured_source, $prev_source) && $source_matches);
-
         my $should_resume = (!$is_standby && $source_matches && ($zone_awaiting_resume{$zone} || $power_turned_on || $source_switched_to_lyrion));
 
         if ($should_resume) {
             $match_counter{$zone} = ($match_counter{$zone} || 0) + 1;
-            _debugLog(sprintf("[FAIL-SAFE AUTO-RESUME] Zone %s match confirmed (%d/1 checks) | Source=%s | AwaitingResume=%d | PwrTurnedOn=%d | SrcSwitched=%d",
+            _debugLog(sprintf("[FAIL-SAFE AUTO-RESUME] Zone %s match confirmed (%d/2 checks) | Source=%s | AwaitingResume=%d | PwrTurnedOn=%d | SrcSwitched=%d",
                 $zone, $match_counter{$zone}, $raw_input // '', $zone_awaiting_resume{$zone} || 0, $power_turned_on ? 1 : 0, $source_switched_to_lyrion ? 1 : 0));
 
-            if ($match_counter{$zone} >= 1) {
+            # Require 2 consecutive matching poll cycles to prevent false resumes when user cycles inputs via remote
+            if ($match_counter{$zone} >= 2) {
                 $match_counter{$zone} = 0;
                 $zone_awaiting_resume{$zone} = 0;
                 $mismatch_counter{$zone} = 0;
                 $last_poweron_time{$zone} = time();
                 $zone_is_playing{$zone} = 1;
-
                 _infoLog("[FAIL-SAFE TRIGGER] Auto-Resuming '$client_name' (Zone $zone) because AVR is ON and source matches '$configured_source'");
-
                 if ($client->isPaused()) {
                     $client->execute(['pause', 0]);
                 } elsif ($client->isStopped()) {
@@ -827,10 +852,6 @@ sub _handleMarantzXmlResponse {
         }
     }
 }
-
-# --------------------------------------------------------------------------
-# Helper: Normalize and compare configured source against receiver XML source
-# --------------------------------------------------------------------------
 sub _isSourceMatch {
     my ($configured, $reported) = @_;
     return 1 unless defined $configured && defined $reported;
@@ -839,24 +860,50 @@ sub _isSourceMatch {
     my $r = uc($reported);
 
     # Strip SI or Z2 prefixes and non-alphanumerics
-    $c =~ s/^SI//; $c =~ s/^Z2//; $c =~ s/[^A-Z0-9]//g;
-    $r =~ s/^SI//; $r =~ s/^Z2//; $r =~ s/[^A-Z0-9]//g;
+    $c =~ s/^(?:SI|Z2)//;
+    $r =~ s/^(?:SI|Z2)//;
+    $c =~ s/[^A-Z0-9]//g;
+    $r =~ s/[^A-Z0-9]//g;
 
     return 1 if $c eq '' || $r eq '';
 
     # Normalize common Denon/Marantz source name aliases
-    $c = 'SATCBL' if ($c eq 'CBLSAT' || $c eq 'SATCBL');
-    $r = 'SATCBL' if ($r eq 'CBLSAT' || $r eq 'SATCBL');
-    $c = 'MEDIAPLAYER' if ($c eq 'MPLAY' || $c eq 'MEDIAPLAYER');
-    $r = 'MEDIAPLAYER' if ($r eq 'MPLAY' || $r eq 'MEDIAPLAYER');
-    $c = 'HEOS' if ($c eq 'NET' || $c eq 'HEOS' || $c eq 'INTERNETRADIO');
-    $r = 'HEOS' if ($r eq 'NET' || $r eq 'HEOS' || $r eq 'INTERNETRADIO');
-    $c = 'BT' if ($c eq 'BT' || $c eq 'BLUETOOTH');
-    $r = 'BT' if ($r eq 'BT' || $r eq 'BLUETOOTH');
-    $c = 'BD' if ($c eq 'BD' || $c eq 'BLURAY');
-    $r = 'BD' if ($r eq 'BD' || $r eq 'BLURAY');
+    my %aliases = (
+        'CBLSAT'        => 'SATCBL',
+        'SATCBL'        => 'SATCBL',
+        'MPLAY'         => 'MEDIAPLAYER',
+        'MEDIAPLAYER'   => 'MEDIAPLAYER',
+        'NET'           => 'HEOS',
+        'HEOS'          => 'HEOS',
+        'INTERNETRADIO' => 'HEOS',
+        'BLUETOOTH'     => 'BT',
+        'BT'            => 'BT',
+        'BLURAY'        => 'BD',
+        'BD'            => 'BD',
+        'TVAUDIO'       => 'TV',
+        'TV'            => 'TV',
+        'AUX1'          => 'AUX1',
+        'AUX2'          => 'AUX2',
+        'GAME1'         => 'GAME',
+        'GAME'          => 'GAME',
+        'PHONO'         => 'PHONO',
+        'TUNER'         => 'TUNER',
+        'USBIPOD'       => 'USB',
+        'USB'           => 'USB',
+    );
 
-    return ($c eq $r || index($r, $c) != -1 || index($c, $r) != -1) ? 1 : 0;
+    $c = $aliases{$c} if exists $aliases{$c};
+    $r = $aliases{$r} if exists $aliases{$r};
+
+    return 1 if $c eq $r;
+
+    # Safer boundary matching: only if both are sufficiently specific (>= 4 chars) and start with each other
+    # Avoids false collisions on short abbreviations like 'CD' or 'TV'
+    if (length($c) >= 4 && length($r) >= 4) {
+        return 1 if (index($r, $c) == 0 || index($c, $r) == 0);
+    }
+
+    return 0;
 }
 
 1;
