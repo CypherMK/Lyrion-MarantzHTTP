@@ -2,11 +2,12 @@ package Plugins::MarantzHTTP::Plugin;
 
 use strict;
 use base qw(Slim::Plugin::Base);
+
 use Slim::Control::Request;
 use Slim::Utils::Log;
 use Slim::Utils::Prefs;
 
-our $VERSION = '1.7.6';
+our $VERSION = '1.7.8';
 
 # Initialize Lyrion / LMS Logger Category
 my $log = Slim::Utils::Log->addLogCategory({
@@ -18,7 +19,7 @@ my $log = Slim::Utils::Log->addLogCategory({
 my $prefs = preferences('plugin.marantzhttp');
 
 $prefs->init({
-    ip                          => '192.168.20.93',
+    ip                          => '',       # Configured by user in settings
     port                        => '8080',
     mac_z1                      => '',
     mac_z2                      => '',
@@ -47,6 +48,7 @@ my %receiver_source_state;    # last reported source (e.g. 'SAT/CBL', 'GAME1')
 my %zone_is_playing;          # 1 if currently active/playing in this zone
 my %zone_awaiting_resume;     # 1 if zone was auto-paused or waiting for receiver to return to Lyrion
 my %internal_auto_pause;      # 1 while plugin is executing fail-safe auto-pause
+my %zone_pending_timers;      # Active timer handles per zone to allow cancellation
 
 # Helper to check if debug logging is enabled via LMS logging settings (plugin.marantzhttp = DEBUG)
 sub _isDebug {
@@ -96,12 +98,6 @@ sub initPlugin {
     require Plugins::MarantzHTTP::Settings;
     Plugins::MarantzHTTP::Settings->new();
 
-    # Register AJAX endpoint to fetch Marantz sources without CORS limitations
-    eval {
-        require Slim::Web::Pages;
-        Slim::Web::Pages->addPageFunction('plugins/MarantzHTTP/ajax_sources', \&ajaxSources);
-    };
-
     # Volume sync: Lyrion -> Marantz
     Slim::Control::Request::subscribe(\&volumeCallback, [['mixer'], ['volume']]);
 
@@ -114,7 +110,9 @@ sub initPlugin {
     Slim::Control::Request::subscribe(\&playTriggerCallback, [['pause']]);
     Slim::Control::Request::subscribe(\&playTriggerCallback, [['playlist'], ['play', 'open', 'load', 'loadtracks', 'loadalbum', 'resume', 'pause']]);
 
-    _infoLog("MarantzHTTP v$VERSION initialized. Target AVR: " . $prefs->get('ip') . ':' . ($prefs->get('port') || '8080'));
+    my $target_ip = $prefs->get('ip') || '[Not Configured]';
+    my $target_port = $prefs->get('port') || '8080';
+    _infoLog("MarantzHTTP v$VERSION initialized. Target AVR: $target_ip:$target_port");
     _debugLog("Subscriptions registered: mixer/volume, playback (play,pause,stop,newsong,open), playTrigger (play,pause,playlist:play,open,load,resume,pause)");
 
     # Check initial playback state
@@ -124,6 +122,28 @@ sub initPlugin {
 sub shutdownPlugin {
     _infoLog("MarantzHTTP plugin shutting down. Stopping all timers.");
     stopPollingTimer();
+    _cancelAllZoneTimers();
+}
+
+# --------------------------------------------------------------------------
+# Timer Management Helpers: Cancel queued retries/volume commands per zone
+# --------------------------------------------------------------------------
+sub _cancelZoneTimers {
+    my $zone = shift;
+    return unless $zone && $zone_pending_timers{$zone};
+    require Slim::Utils::Timers;
+    for my $timer_id (@{ $zone_pending_timers{$zone} }) {
+        if ($timer_id) {
+            eval { Slim::Utils::Timers::killTimers(undef, $timer_id); };
+        }
+    }
+    delete $zone_pending_timers{$zone};
+}
+
+sub _cancelAllZoneTimers {
+    for my $z ('MV', 'Z2') {
+        _cancelZoneTimers($z);
+    }
 }
 
 # --------------------------------------------------------------------------
@@ -175,8 +195,7 @@ sub playTriggerCallback {
     }
 
     # 4. Check player status:
-    # If the player is currently paused (e.g. user pressed pause, or toggle pause paused playback),
-    # and this command is NOT an explicit unpause ('pause 0'), NEVER switch source or power on!
+    # If the player is currently paused and this command is NOT an explicit unpause ('pause 0'), NEVER switch source or power on!
     my $is_explicit_unpause = ((defined $p0 && $p0 eq '0') || (defined $p1 && $p1 eq '0') || (defined $p2 && $p2 eq '0') || $req_str =~ /\bpause\s+0\b/i);
 
     if ($client->isPaused() && !$is_explicit_unpause) {
@@ -211,8 +230,9 @@ sub ensurePowerAndSource {
     my $client_name = eval { $client->name() } || $client->id() || 'player';
     my $ip   = $prefs->get('ip');
     my $port = $prefs->get('port') || '8080';
+
     unless ($ip) {
-        _warnLog("[CONFIG] ensurePowerAndSource: Marantz IP address is not configured in settings");
+        _warnLog("[CONFIG] ensurePowerAndSource: Marantz IP address is not configured in settings. Skipping command.");
         return;
     }
 
@@ -227,8 +247,8 @@ sub ensurePowerAndSource {
 
     $last_poweron_time{$zone} = $now;
     $zone_is_playing{$zone} = 1;
-    $zone_awaiting_resume{$zone} = 0; # Starting or resuming playback clears awaiting_resume flag
-    $mismatch_counter{$zone} = 0;     # Reset fail-safe mismatch counter so auto-pause gives grace period
+    $zone_awaiting_resume{$zone} = 0;
+    $mismatch_counter{$zone} = 0;
     $match_counter{$zone} = 0;
 
     my $is_already_on = ($receiver_power_state{$zone} && $receiver_power_state{$zone} eq 'ON') ? 1 : 0;
@@ -237,7 +257,7 @@ sub ensurePowerAndSource {
         my $power_on_enabled = $prefs->get('power_on_z1');
         my $power_cmd = $power_on_enabled ? 'ZMON' : undef;
         my $source_cmd = $prefs->get('source_z1') || 'SISAT/CBL';
-        # Only set initial power volume when powering on from Standby/Off
+
         my $vol = (!$is_already_on && $prefs->get('set_volume_on_power_z1')) ? $prefs->get('power_volume_z1') : undef;
 
         _infoLog(sprintf("[TRIGGER] Ensuring Power & Source for Main Zone ('%s') | Reason: %s | PowerCmd: %s | Source: %s | InitialVol: %s | AVR: %s",
@@ -248,6 +268,7 @@ sub ensurePowerAndSource {
         my $power_on_enabled = $prefs->get('power_on_z2');
         my $power_cmd = $power_on_enabled ? 'Z2ON' : undef;
         my $source_cmd = $prefs->get('source_z2') || 'Z2NET';
+
         my $vol = (!$is_already_on && $prefs->get('set_volume_on_power_z2')) ? $prefs->get('power_volume_z2') : undef;
 
         _infoLog(sprintf("[TRIGGER] Ensuring Power & Source for Zone 2 ('%s') | Reason: %s | PowerCmd: %s | Source: %s | InitialVol: %s | AVR: %s",
@@ -274,11 +295,9 @@ sub playbackCallback {
     if ($zone) {
         if ($client->isStopped()) {
             $zone_is_playing{$zone} = 0;
+            _cancelZoneTimers($zone);
             _debugLog("[STATUS] Zone $zone player is STOPPED.");
         } elsif ($client->isPaused()) {
-            # Only disarm auto-resume if receiver is currently ON and matches Lyrion source
-            # (i.e. user intentionally paused while actively listening to Lyrion).
-            # If the receiver is in STANDBY or on another input, maintain awaiting_resume flag!
             my $configured_source = ($zone eq 'MV') ? $prefs->get('source_z1') : $prefs->get('source_z2');
             my $is_on_lyrion = ($receiver_power_state{$zone} && $receiver_power_state{$zone} eq 'ON' &&
                                 $receiver_source_state{$zone} && _isSourceMatch($configured_source, $receiver_source_state{$zone}));
@@ -295,8 +314,6 @@ sub playbackCallback {
             $match_counter{$zone} = 0;
             _debugLog("[STATUS] Zone $zone player is PLAYING.");
 
-            # Safety Net: If player is actively playing and no recent trigger in last 4s,
-            # ensure Marantz power and input source are active (unless receiver is on another source)!
             my $now = time();
             my $last_start = $last_poweron_time{$zone} || 0;
             my $configured_source = ($zone eq 'MV') ? $prefs->get('source_z1') : $prefs->get('source_z2');
@@ -310,6 +327,7 @@ sub playbackCallback {
             }
         }
     }
+
     checkAndManagePolling();
 }
 
@@ -322,6 +340,9 @@ sub _sendPowerSourceAndVolume {
 
     my $now = eval { require Time::HiRes; Time::HiRes::time() } || time();
     require Slim::Utils::Timers;
+
+    _cancelZoneTimers($zone);
+    $zone_pending_timers{$zone} = [];
 
     # 1. Power ON command (if configured)
     if ($power_cmd) {
@@ -336,32 +357,36 @@ sub _sendPowerSourceAndVolume {
     if ($source_cmd) {
         $source_cmd =~ s/^\s+|\s+$//g;
         $source_cmd =~ s/^\?//;
+
         if ($source_cmd ne '') {
             my $url_source = "http://$ip:$port/goform/formiPhoneAppDirect.xml?$source_cmd";
 
             if ($is_already_on) {
-                # AVR is already ON (e.g. on GAME1): switch source IMMEDIATELY
                 _debugLog("[ACTION OUT] AVR already ON. Dispatching Source Switch immediately: $source_cmd -> $url_source");
                 _sendHttpRequest($url_source);
 
-                # Re-confirm at +800ms to guarantee input lock
-                Slim::Utils::Timers::setTimer(undef, $now + 0.8, sub {
+                my $timer_sub = sub {
                     _debugLog("[ACTION OUT] Re-confirming Source Switch: $source_cmd -> $url_source");
                     _sendHttpRequest($url_source);
-                });
+                };
+                Slim::Utils::Timers::setTimer(undef, $now + 0.8, $timer_sub);
+                push @{ $zone_pending_timers{$zone} }, $timer_sub;
             } else {
-                # AVR waking from Standby: Marantz CPU takes ~600-800ms before accepting input changes
                 _debugLog("[ACTION OUT] AVR waking from standby. Scheduling Source Switch: $source_cmd (+700ms and +2000ms retry)");
-                Slim::Utils::Timers::setTimer(undef, $now + 0.7, sub {
+
+                my $timer_sub1 = sub {
                     _debugLog("[ACTION OUT] Dispatching Source Switch command: $source_cmd -> $url_source");
                     _sendHttpRequest($url_source);
-                });
+                };
+                Slim::Utils::Timers::setTimer(undef, $now + 0.7, $timer_sub1);
+                push @{ $zone_pending_timers{$zone} }, $timer_sub1;
 
-                # Re-confirm at +2.0s so HDMI board locks onto the selected input
-                Slim::Utils::Timers::setTimer(undef, $now + 2.0, sub {
+                my $timer_sub2 = sub {
                     _debugLog("[ACTION OUT] Re-confirming Source Switch after power-up: $source_cmd -> $url_source");
                     _sendHttpRequest($url_source);
-                });
+                };
+                Slim::Utils::Timers::setTimer(undef, $now + 2.0, $timer_sub2);
+                push @{ $zone_pending_timers{$zone} }, $timer_sub2;
             }
         }
     }
@@ -375,7 +400,8 @@ sub _sendPowerSourceAndVolume {
         my $url_vol = "http://$ip:$port/goform/formiPhoneAppDirect.xml?$vol_cmd";
 
         _debugLog("[ACTION OUT] Scheduling Power-On Volume: $vol_cmd (+1200ms delay)");
-        Slim::Utils::Timers::setTimer(undef, $now + 1.2, sub {
+
+        my $timer_sub3 = sub {
             _debugLog("[ACTION OUT] Dispatching Power-On Volume command: $vol_cmd -> $url_vol");
             _sendHttpRequest($url_vol);
 
@@ -387,12 +413,15 @@ sub _sendPowerSourceAndVolume {
                 $client->execute(['mixer', 'volume', $vol]);
                 $syncing_clients{$mac} = 0;
             }
-        });
+        };
+        Slim::Utils::Timers::setTimer(undef, $now + 1.2, $timer_sub3);
+        push @{ $zone_pending_timers{$zone} }, $timer_sub3;
     }
 }
 
 # --------------------------------------------------------------------------
-# HTTP Request Dispatcher: Uses LMS SimpleAsyncHTTP + fallback to curl
+# HTTP Request Dispatcher: Fully asynchronous native LMS networking
+# Non-blocking, cross-platform (Linux, Windows, macOS, NAS), zero duplicate requests
 # --------------------------------------------------------------------------
 sub _sendHttpRequest {
     my $url = shift;
@@ -410,18 +439,15 @@ sub _sendHttpRequest {
             },
             sub {
                 my ($http, $error) = @_;
-                _debugLog("[HTTP ERROR] $url -> Failed/Timeout: " . ($error || 'Unknown error'));
+                _debugLog("[HTTP ERROR] $url -> Failed/Timeout: " . ($error || 'Network timeout or unreachable'));
             },
             { timeout => 3 }
         );
         $http->get($url);
     };
     if ($@) {
-        _debugLog("[HTTP WARN] SimpleAsyncHTTP error: $@");
+        _warnLog("[HTTP WARN] SimpleAsyncHTTP error: $@");
     }
-
-    # Also dispatch via background curl for maximum reliability across systems
-    system("curl -s -m 2 \"$url\" > /dev/null 2>&1 &");
 }
 
 # --------------------------------------------------------------------------
@@ -448,6 +474,7 @@ sub volumeCallback {
 
         my $ip = $prefs->get('ip');
         my $port = $prefs->get('port') || '8080';
+
         unless ($ip) {
             _debugLog("[VOLUME] Marantz IP not configured, skipping volume sync for '$client_name'");
             return;
@@ -480,19 +507,26 @@ sub getClientZone {
     my $mac_z2 = lc($prefs->get('mac_z2') || '');
     $mac_z2 =~ s/[^a-f0-9]//g;
 
-    # If Zone 1 MAC matches explicitly
+    # 1. If Zone 1 MAC matches explicitly
     if ($mac_z1 && $mac eq $mac_z1) {
         return 'MV';
     }
 
-    # If Zone 2 MAC matches explicitly
+    # 2. If Zone 2 MAC matches explicitly
     if ($mac_z2 && $mac eq $mac_z2) {
         return 'Z2';
     }
 
-    # If Zone 1 MAC is empty and client does NOT match Zone 2, default to Main Zone ('MV')
+    # 3. Fallback: Only auto-assign to Zone 1 if mac_z1 is NOT explicitly configured AND
+    # there is exactly 1 player connected to LMS. In multi-player setups, do NOT hijack all players!
     if (!$mac_z1 && (!$mac_z2 || $mac ne $mac_z2)) {
-        return 'MV';
+        my @all_clients = Slim::Player::Client::clients();
+        if (scalar(@all_clients) <= 1) {
+            return 'MV';
+        } else {
+            _debugLog("[CONFIG] Multiple players detected and mac_z1 is not set. Player '$mac' will not auto-control Zone 1. Please specify MAC in settings.");
+            return '';
+        }
     }
 
     return '';
@@ -575,6 +609,7 @@ sub pollActiveMarantzZones {
     return unless $ip;
 
     my %active_zones;
+
     for my $client (Slim::Player::Client::clients()) {
         my $zone = getClientZone($client);
         next unless $zone;
@@ -593,6 +628,7 @@ sub pollActiveMarantzZones {
         _debugLog("[POLL OUT] Polling Main Zone XML status from $ip:$port...");
         _queryMarantzStatus($ip, $port, 'MV', 'formMainZone_MainZoneXmlStatusLite.xml', $active_zones{'MV'});
     }
+
     if ($active_zones{'Z2'}) {
         _debugLog("[POLL OUT] Polling Zone 2 XML status from $ip:$port...");
         _queryMarantzStatus($ip, $port, 'Z2', 'formZone2_Zone2XmlStatusLite.xml', $active_zones{'Z2'});
@@ -626,16 +662,16 @@ sub _handleMarantzXmlResponse {
 
     my $client_name = eval { $client->name() } || $client->id() || 'player';
 
-    # Extract Power status (zonePower, ZonePower, Power)
+    # Extract Power status (zonePower, ZonePower, Power) - Robust regex supporting attributes and multiline
     my $raw_power;
-    if ($content =~ /<(?:zonePower|ZonePower|Power)>\s*<value>([^<]+)<\/value>/i) {
+    if ($content =~ /<(?:zonePower|ZonePower|Power)[^>]*>\s*<value>([^<]+)<\/value>/si) {
         $raw_power = uc($1);
         $raw_power =~ s/^\s+|\s+$//g;
     }
 
     # Extract Input Source (InputFuncSelect)
     my $raw_input;
-    if ($content =~ /<InputFuncSelect>\s*<value>([^<]+)<\/value>/i) {
+    if ($content =~ /<InputFuncSelect[^>]*>\s*<value>([^<]+)<\/value>/si) {
         $raw_input = uc($1);
         $raw_input =~ s/^\s+|\s+$//g;
     }
@@ -672,11 +708,11 @@ sub _handleMarantzXmlResponse {
     # 1. Volume Sync: Marantz -> Lyrion (Only when sync_volume is enabled & client is playing)
     # --------------------------------------------------------------------------
     if ($prefs->get('sync_volume') && $client->isPlaying()) {
-        if ($content =~ /<(?:MasterVolume|Zone2Volume|Volume)>\s*<value>([^<]+)<\/value>/i) {
+        if ($content =~ /<(?:MasterVolume|Zone2Volume|Volume)[^>]*>\s*<value>([^<]+)<\/value>/si) {
             my $raw = $1;
             $raw =~ s/^\s+|\s+$//g;
-
             my $vol;
+
             if ($raw =~ /^-([\d\.]+)$/) {
                 # Negative dB (e.g., -45.0 dB -> 80 - 45 = 35)
                 $vol = int(80 - $1 + 0.5);
@@ -695,6 +731,7 @@ sub _handleMarantzXmlResponse {
                 if (abs($vol - $current_vol) >= 1) {
                     my $mac = lc($client->id() || '');
                     $mac =~ s/[^a-f0-9]//g;
+
                     _infoLog("[VOLUME SYNC] Marantz ($vol) -> LMS '$client_name' (was $current_vol). Updating slider.");
                     $syncing_clients{$mac} = 1;
                     $client->execute(['mixer', 'volume', $vol]);
@@ -711,6 +748,7 @@ sub _handleMarantzXmlResponse {
     # 2. Fail-Safe Auto-Pause on Receiver Power-OFF / Source Change (Playing -> Pause)
     # --------------------------------------------------------------------------
     my $pause_enabled = ($zone eq 'MV') ? $prefs->get('pause_on_off_or_source_z1') : $prefs->get('pause_on_off_or_source_z2');
+
     if ($pause_enabled && $client->isPlaying()) {
         # Grace period: do not pause within 15 seconds of starting playback/power-on or source switch
         my $now = time();
@@ -727,6 +765,7 @@ sub _handleMarantzXmlResponse {
             $mismatch_counter{$zone} = ($mismatch_counter{$zone} || 0) + 1;
             _debugLog(sprintf("[FAIL-SAFE AUTO-PAUSE] Zone %s mismatch detected (%d/3 checks) | Standby=%d, SourceMatch=%d, Reported='%s', Configured='%s'",
                 $zone, $mismatch_counter{$zone}, $is_standby, $source_matches, $raw_input // 'N/A', $configured_source // 'N/A'));
+
             if ($mismatch_counter{$zone} >= 3) {
                 $mismatch_counter{$zone} = 0;
                 if ($client->isPlaying()) {
@@ -756,21 +795,25 @@ sub _handleMarantzXmlResponse {
     # Works seamlessly if AVR was in standby, switched input, or turned back on.
     # --------------------------------------------------------------------------
     my $resume_enabled = ($zone eq 'MV') ? $prefs->get('resume_on_source_z1') : $prefs->get('resume_on_source_z2');
+
     if ($resume_enabled && !$client->isPlaying()) {
         my $power_turned_on = ($prev_power eq 'STANDBY' && !$is_standby);
         my $source_switched_to_lyrion = ($prev_source ne 'UNKNOWN' && !_isSourceMatch($configured_source, $prev_source) && $source_matches);
+
         my $should_resume = (!$is_standby && $source_matches && ($zone_awaiting_resume{$zone} || $power_turned_on || $source_switched_to_lyrion));
 
         if ($should_resume) {
             $match_counter{$zone} = ($match_counter{$zone} || 0) + 1;
             _debugLog(sprintf("[FAIL-SAFE AUTO-RESUME] Zone %s match confirmed (%d/1 checks) | Source=%s | AwaitingResume=%d | PwrTurnedOn=%d | SrcSwitched=%d",
                 $zone, $match_counter{$zone}, $raw_input // '', $zone_awaiting_resume{$zone} || 0, $power_turned_on ? 1 : 0, $source_switched_to_lyrion ? 1 : 0));
+
             if ($match_counter{$zone} >= 1) {
                 $match_counter{$zone} = 0;
                 $zone_awaiting_resume{$zone} = 0;
                 $mismatch_counter{$zone} = 0;
                 $last_poweron_time{$zone} = time();
                 $zone_is_playing{$zone} = 1;
+
                 _infoLog("[FAIL-SAFE TRIGGER] Auto-Resuming '$client_name' (Zone $zone) because AVR is ON and source matches '$configured_source'");
 
                 if ($client->isPaused()) {
@@ -804,65 +847,16 @@ sub _isSourceMatch {
     # Normalize common Denon/Marantz source name aliases
     $c = 'SATCBL' if ($c eq 'CBLSAT' || $c eq 'SATCBL');
     $r = 'SATCBL' if ($r eq 'CBLSAT' || $r eq 'SATCBL');
-
     $c = 'MEDIAPLAYER' if ($c eq 'MPLAY' || $c eq 'MEDIAPLAYER');
     $r = 'MEDIAPLAYER' if ($r eq 'MPLAY' || $r eq 'MEDIAPLAYER');
-
     $c = 'HEOS' if ($c eq 'NET' || $c eq 'HEOS' || $c eq 'INTERNETRADIO');
     $r = 'HEOS' if ($r eq 'NET' || $r eq 'HEOS' || $r eq 'INTERNETRADIO');
-
     $c = 'BT' if ($c eq 'BT' || $c eq 'BLUETOOTH');
     $r = 'BT' if ($r eq 'BT' || $r eq 'BLUETOOTH');
-
     $c = 'BD' if ($c eq 'BD' || $c eq 'BLURAY');
     $r = 'BD' if ($r eq 'BD' || $r eq 'BLURAY');
 
     return ($c eq $r || index($r, $c) != -1 || index($c, $r) != -1) ? 1 : 0;
-}
-
-# --------------------------------------------------------------------------
-# AJAX Handler: Fetch Marantz Sources via LMS Server (Bypasses browser CORS)
-# --------------------------------------------------------------------------
-sub ajaxSources {
-    my ($httpClient, $params, $callback, @args) = @_;
-    my $ip = $params->{ip} || $prefs->get('ip') || '192.168.20.93';
-    my $port = $params->{port} || $prefs->get('port') || '8080';
-
-    _debugLog("[AJAX IN] Request to discover Marantz sources from $ip:$port");
-
-    require Plugins::MarantzHTTP::Settings;
-    my ($z1_sources, $z2_sources, $discovered) = Plugins::MarantzHTTP::Settings::fetchReceiverSources($ip, $port);
-
-    my @z1_json;
-    for my $it (@$z1_sources) {
-        my $v = $it->{value} // '';
-        my $n = $it->{name} // '';
-        $v =~ s/\\/\\\\/g; $v =~ s/"/\\"/g;
-        $n =~ s/\\/\\\\/g; $n =~ s/"/\\"/g;
-        push @z1_json, "{\"value\":\"$v\",\"name\":\"$n\"}";
-    }
-
-    my @z2_json;
-    for my $it (@$z2_sources) {
-        my $v = $it->{value} // '';
-        my $n = $it->{name} // '';
-        $v =~ s/\\/\\\\/g; $v =~ s/"/\\"/g;
-        $n =~ s/\\/\\\\/g; $n =~ s/"/\\"/g;
-        push @z2_json, "{\"value\":\"$v\",\"name\":\"$n\"}";
-    }
-
-    my $json_str = sprintf('{"success":1,"fetched":%d,"ip":"%s","port":"%s","sources_z1":[%s],"sources_z2":[%s]}',
-        $discovered ? 1 : 0,
-        $ip,
-        $port,
-        join(',', @z1_json),
-        join(',', @z2_json)
-    );
-
-    _debugLog("[AJAX OUT] Discovered sources: Z1 count=" . scalar(@$z1_sources) . ", Z2 count=" . scalar(@$z2_sources));
-
-    require Slim::Web::HTTP;
-    return Slim::Web::HTTP::sendContent($httpClient, 'application/json; charset=utf-8', $json_str);
 }
 
 1;

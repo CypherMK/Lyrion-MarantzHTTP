@@ -2,8 +2,8 @@
 <extension>
   <name>MarantzHTTP</name>
   <module>Plugins::MarantzHTTP::Plugin</module>
-  <version>1.7.6</version>
-  <description>Control Marantz and Denon receiver volume via HTTP with bidirectional sync, automatic power-on on playlist start, input selection, and fail-safe auto-pause/auto-resume on receiver power-off or input source change.</description>
+  <version>1.7.8</version>
+  <description>Control Marantz and Denon receiver volume via HTTP with bidirectional sync, automatic power-on on playlist start, input selection, non-blocking asynchronous requests, and fail-safe auto-pause/auto-resume.</description>
   <creator>CypherMK</creator>
   <email>none@none.com</email>
   <defaultState>enabled</defaultState>
@@ -11,7 +11,7 @@
   <optionsURL>plugins/MarantzHTTP/settings/basic.html</optionsURL>
   <targetApplication>
     <id>SqueezeCenter</id>
-    <minVersion>7.6</minVersion>
+    <minVersion>8.0</minVersion>
     <maxVersion>*</maxVersion>
   </targetApplication>
 </extension>
