@@ -309,3 +309,4 @@ PLUGIN_MARANTZHTTP_POLL_INTERVAL_DESC
 	FR	Fréquence de vérification du volume de l'ampli pendant la lecture (défaut : 2 secondes, plage 1-10)
 	ES	Frecuencia de comprobación del volumen durante la reproducción (por defecto: 2 segundos, rango 1-10)
 	IT	Frequenza di controllo del volume dell'amplificatore durante la riproduzione (predefinito: 2 secondi, intervallo 1-10)
+

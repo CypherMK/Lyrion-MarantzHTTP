@@ -6,6 +6,7 @@ use Slim::Utils::Prefs;
 use Slim::Utils::Log;
 
 my $prefs = preferences('plugin.marantzhttp');
+my $log   = logger('plugin.marantzhttp');
 
 sub name { 'PLUGIN_MARANTZHTTP' }
 
@@ -57,11 +58,16 @@ sub getDefaultSourcesZ2 {
 # Fetch dynamic renamed sources from Marantz receiver if online
 sub fetchReceiverSources {
     my ($ip, $port) = @_;
-    return (getDefaultSourcesZ1(), getDefaultSourcesZ2()) unless $ip;
+    return (getDefaultSourcesZ1(), getDefaultSourcesZ2(), 0) unless $ip;
     $port ||= '8080';
 
     my @z1_sources;
     my @z2_sources;
+    my $discovered = 0;
+
+    if ($log && $log->is_debug) {
+        $log->debug("[SETTINGS] Attempting to discover renamed sources from http://$ip:$port/goform/AppCommand.xml");
+    }
 
     # Try synchronous retrieval via LWP or curl if available
     eval {
@@ -97,8 +103,14 @@ sub fetchReceiverSources {
                 push @z1_sources, { value => $cmd_z1, name => $friendly };
                 push @z2_sources, { value => $cmd_z2, name => $friendly };
             }
+            if (@z1_sources) {
+                $discovered = 1;
+            }
         }
     };
+    if ($@ && $log && ($log->is_debug || $prefs->get('debug_logging'))) {
+        $log->debug("[SETTINGS] Source auto-discovery exception: $@");
+    }
 
     if (!@z1_sources) {
         @z1_sources = @{ getDefaultSourcesZ1() };
@@ -112,7 +124,7 @@ sub fetchReceiverSources {
         }
     }
 
-    return (\@z1_sources, \@z2_sources);
+    return (\@z1_sources, \@z2_sources, $discovered);
 }
 
 sub beforeRender {
@@ -120,9 +132,10 @@ sub beforeRender {
     my $ip = $prefs->get('ip');
     my $port = $prefs->get('port') || '8080';
 
-    my ($z1_list, $z2_list) = fetchReceiverSources($ip, $port);
+    my ($z1_list, $z2_list, $discovered) = fetchReceiverSources($ip, $port);
     $params->{sources_z1} = $z1_list;
     $params->{sources_z2} = $z2_list;
+    $params->{sources_discovered} = $discovered;
 
     # Ensure currently selected source is available in dropdown even if custom
     my $current_z1 = $prefs->get('source_z1');
@@ -137,4 +150,3 @@ sub beforeRender {
 }
 
 1;
-
