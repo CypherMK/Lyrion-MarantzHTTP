@@ -31,12 +31,36 @@ PLUGIN_MARANTZHTTP_PORT
 	IT	Porta Marantz
 
 PLUGIN_MARANTZHTTP_PORT_DESC
-	EN	Default: 8080
-	NL	Standaard: 8080
-	DE	Standard: 8080
-	FR	Défaut : 8080
-	ES	Por defecto: 8080
-	IT	Predefinito: 8080
+	EN	Default: 8080 (use 80 for newer HEOS-generation AVRs)
+	NL	Standaard: 8080 (gebruik 80 voor nieuwere HEOS-generatie AVR's)
+	DE	Standard: 8080 (Port 80 für neuere HEOS-Generationen verwenden)
+	FR	Défaut : 8080 (utiliser 80 pour les modèles HEOS récents)
+	ES	Por defecto: 8080 (use 80 para receptores recientes con HEOS)
+	IT	Predefinito: 8080 (usa 80 per i sintoamplificatori più recenti con HEOS)
+
+PLUGIN_MARANTZHTTP_NONE
+	EN	None / Disabled
+	NL	Geen / Uitgeschakeld
+	DE	Keine / Deaktiviert
+	FR	Aucun / Désactivé
+	ES	Ninguno / Desactivado
+	IT	Nessuno / Disabilitato
+
+PLUGIN_MARANTZHTTP_ENTER_MANUALLY
+	EN	Enter MAC manually...
+	NL	Handmatig MAC-adres invoeren...
+	DE	MAC manuell eingeben...
+	FR	Saisir l'adresse MAC manuellement...
+	ES	Ingresar dirección MAC manualmente...
+	IT	Inserisci indirizzo MAC manualmente...
+
+PLUGIN_MARANTZHTTP_CHOOSE_FROM_LIST
+	EN	Choose from list
+	NL	Kies uit lijst
+	DE	Aus Liste wählen
+	FR	Choisir dans la liste
+	ES	Elegir de la lista
+	IT	Scegli dall'elenco
 
 PLUGIN_MARANTZHTTP_CUSTOM_NAMES
 	EN	Custom Input Names & Presets
@@ -309,4 +333,101 @@ PLUGIN_MARANTZHTTP_POLL_INTERVAL_DESC
 	FR	Fréquence de vérification du volume de l'ampli pendant la lecture (défaut : 2 secondes, plage 1-10)
 	ES	Frecuencia de comprobación del volumen durante la reproducción (por defecto: 2 segundos, rango 1-10)
 	IT	Frequenza di controllo del volume dell'amplificatore durante la riproduzione (predefinito: 2 secondi, intervallo 1-10)
+
+PLUGIN_MARANTZHTTP_SECTION_GENERAL
+	EN	General Network Settings
+	NL	Algemene Netwerkinstellingen
+	DE	Allgemeine Netzwerkeinstellungen
+	FR	Paramètres réseau généraux
+	ES	Ajustes generales de red
+	IT	Impostazioni generali di rete
+
+PLUGIN_MARANTZHTTP_SECTION_MAIN_ZONE
+	EN	Main Zone (Zone 1)
+	NL	Hoofdzone (Zone 1)
+	DE	Hauptzone (Zone 1)
+	FR	Zone principale (Zone 1)
+	ES	Zona Principal (Zona 1)
+	IT	Zona Principale (Zona 1)
+
+PLUGIN_MARANTZHTTP_SECTION_ZONE_2
+	EN	Zone 2
+	NL	Zone 2
+	DE	Zone 2
+	FR	Zone 2
+	ES	Zona 2
+	IT	Zona 2
+
+PLUGIN_MARANTZHTTP_SECTION_POWER_INPUT
+	EN	Power & Input
+	NL	Power & Ingang
+	DE	Power & Eingang
+	FR	Alimentation & Entrée
+	ES	Alimentación y Entrada
+	IT	Alimentazione e Ingresso
+
+PLUGIN_MARANTZHTTP_SECTION_MEDIA_BEHAVIOR
+	EN	Media Behavior
+	NL	Media-gedrag
+	DE	Medien-Verhalten
+	FR	Comportement média
+	ES	Comportamiento de medios
+	IT	Comportamento multimediale
+
+PLUGIN_MARANTZHTTP_SECTION_VOLUME_SETTINGS
+	EN	Volume Settings
+	NL	Volumeinstellingen
+	DE	Lautstärkeeinstellungen
+	FR	Paramètres de volume
+	ES	Ajustes de volumen
+	IT	Impostazioni del volume
+
+PLUGIN_MARANTZHTTP_POWER_ON_LABEL
+	EN	Auto Power On
+	NL	Automatisch inschakelen
+	DE	Automatisch einschalten
+	FR	Allumage automatique
+	ES	Encendido automático
+	IT	Accensione automatica
+
+PLUGIN_MARANTZHTTP_SOURCE_LABEL
+	EN	Input Source
+	NL	Ingangsbron
+	DE	Eingangsquelle
+	FR	Source d'entrée
+	ES	Fuente de entrada
+	IT	Sorgente di ingresso
+
+PLUGIN_MARANTZHTTP_PAUSE_LABEL
+	EN	Pause player on power off
+	NL	Pauzeer speler bij uitschakelen
+	DE	Player bei Ausschalten pausieren
+	FR	Mettre en pause à l'extinction
+	ES	Pausar reproductor al apagar
+	IT	Metti in pausa il lettore allo spegnimento
+
+PLUGIN_MARANTZHTTP_RESUME_LABEL
+	EN	Resume player when selecting source
+	NL	Hervat speler bij selecteren bron
+	DE	Wiedergabe fortsetzen bei Quellenauswahl
+	FR	Reprendre la lecture lors de la sélection de la source
+	ES	Reanudar reproductor al seleccionar fuente
+	IT	Riprendi riproduzione alla selezione sorgente
+
+PLUGIN_MARANTZHTTP_SET_VOLUME_LABEL
+	EN	Set volume upon power on
+	NL	Volume instellen bij inschakelen
+	DE	Lautstärke beim Einschalten einstellen
+	FR	Régler le volume à l'allumage
+	ES	Ajustar volumen al encender
+	IT	Imposta volume all'accensione
+
+PLUGIN_MARANTZHTTP_POWER_VOLUME_LABEL
+	EN	└ Power-on volume
+	NL	└ Inschakelvolume
+	DE	└ Einschaltlautstärke
+	FR	└ Volume à l'allumage
+	ES	└ Volumen al encender
+	IT	└ Volume all'accensione
+
 

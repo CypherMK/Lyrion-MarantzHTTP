@@ -1,13 +1,14 @@
 package Plugins::MarantzHTTP::Settings;
 
 use strict;
+use warnings;
 use base qw(Slim::Web::Settings);
 
 use Slim::Utils::Prefs;
 use Slim::Utils::Log;
 
 my $prefs = preferences('plugin.marantzhttp');
-my $log   = logger('plugin.marantzhttp');
+my $log   = eval { logger('plugin.marantzhttp') } || eval { Slim::Utils::Log->logger('plugin.marantzhttp') };
 
 sub name { 'PLUGIN_MARANTZHTTP' }
 
@@ -78,6 +79,58 @@ sub beforeRender {
     if ($current_z2 && !grep { $_->{value} eq $current_z2 } @{$params->{sources_z2}}) {
         unshift @{$params->{sources_z2}}, { value => $current_z2, name => $current_z2 };
     }
+
+    # Discover and list currently connected LMS players for 1-click selection
+    my @players;
+    my %seen_macs;
+
+    if (eval { require Slim::Player::Client; 1; }) {
+        for my $c (Slim::Player::Client::clients()) {
+            next unless $c;
+            my $mac = lc($c->id() || '');
+            $mac =~ s/[^a-f0-9]//g;
+            next unless $mac;
+            $seen_macs{$mac} = 1;
+            my $name = eval { $c->name() } || $mac;
+            my $display_mac = join(':', $mac =~ /../g);
+            push @players, {
+                id   => $display_mac,
+                name => "$name ($display_mac)",
+            };
+        }
+    }
+
+    # If a previously configured MAC is currently offline/turned off, preserve it in the dropdown
+    for my $k ('mac_z1', 'mac_z2') {
+        my $saved = $prefs->get($k);
+        if ($saved) {
+            my $clean = lc($saved);
+            $clean =~ s/[^a-f0-9]//g;
+            if ($clean && !$seen_macs{$clean}) {
+                my $display = join(':', $clean =~ /../g);
+                push @players, {
+                    id   => $display,
+                    name => "$display (Offline / Opgeslagen)",
+                };
+                $seen_macs{$clean} = 1;
+            }
+        }
+    }
+
+    # Precalculate selection matching in Perl for 100% reliable matching regardless of case/format
+    my $cur_mac_z1 = lc($prefs->get('mac_z1') || '');
+    $cur_mac_z1 =~ s/[^a-f0-9]//g;
+    my $cur_mac_z2 = lc($prefs->get('mac_z2') || '');
+    $cur_mac_z2 =~ s/[^a-f0-9]//g;
+
+    for my $p (@players) {
+        my $clean = lc($p->{id});
+        $clean =~ s/[^a-f0-9]//g;
+        $p->{selected_z1} = ($cur_mac_z1 && $clean eq $cur_mac_z1) ? 1 : 0;
+        $p->{selected_z2} = ($cur_mac_z2 && $clean eq $cur_mac_z2) ? 1 : 0;
+    }
+
+    $params->{available_players} = \@players;
 }
 
 # Input sanitization before saving settings
@@ -99,16 +152,29 @@ sub handler {
             $params->{'pref_port'} = '8080' if $params->{'pref_port'} eq '';
         }
 
-        # Sanitize MAC addresses (strip spaces)
-        if (defined $params->{'pref_mac_z1'}) {
-            $params->{'pref_mac_z1'} =~ s/^\s+|\s+$//g;
-        }
-        if (defined $params->{'pref_mac_z2'}) {
-            $params->{'pref_mac_z2'} =~ s/^\s+|\s+$//g;
+        # Sanitize MAC addresses
+        for my $mac_key ('pref_mac_z1', 'pref_mac_z2') {
+            if (defined $params->{$mac_key}) {
+                $params->{$mac_key} =~ s/^\s+|\s+$//g;
+                # Discard special placeholder values
+                if ($params->{$mac_key} eq '__MANUAL__') {
+                    $params->{$mac_key} = '';
+                }
+            }
         }
     }
 
-    return $class->SUPER::handler($client, $params, $callback, @args);
+    my $res = $class->SUPER::handler($client, $params, $callback, @args);
+
+    if ($params->{'saveSettings'}) {
+        eval {
+            require Plugins::MarantzHTTP::Plugin;
+            Plugins::MarantzHTTP::Plugin::checkAndManagePolling();
+            Plugins::MarantzHTTP::Plugin::pollActiveMarantzZones();
+        };
+    }
+
+    return $res;
 }
 
 1;
