@@ -8,7 +8,7 @@ use Slim::Control::Request;
 use Slim::Utils::Log;
 use Slim::Utils::Prefs;
 
-our $VERSION = '1.8.3';
+our $VERSION = '1.9.0';
 
 # Initialize Lyrion / LMS Logger Category
 my $log = Slim::Utils::Log->addLogCategory({
@@ -26,16 +26,32 @@ $prefs->init({
     mac_z2                      => '',
     power_on_z1                 => 1,
     source_z1                   => 'SISAT/CBL',
+    set_sound_mode_on_power_z1  => 0,        # 1 to enforce sound mode on startup
+    sound_mode_z1               => '',       # e.g. 'MSSTEREO', 'MSDIRECT', 'MSPURE DIRECT', 'MSMCH STEREO'
+    set_room_preset_on_power_z1 => 0,        # 1 to enforce Dirac / Audyssey preset on startup
+    room_preset_z1              => '',       # e.g. 'SPPR 1', 'SPPR 2', 'PSDIRAC 1', 'PSMULTEQ:AUDYSSEY'
     set_volume_on_power_z1      => 1,
     power_volume_z1             => 40,
     pause_on_off_or_source_z1   => 1,
     resume_on_source_z1         => 1,
+    play_playlist_on_power_z1   => 0,
+    playlist_type_z1            => 'standard', # 'standard' or 'dynamic' (via Dynamic Playlists v4.7.1)
+    playlist_z1                 => '',
+    dynamic_playlist_z1         => '',
+    shuffle_z1                  => 0,
+    play_only_if_empty_z1       => 0,
     power_on_z2                 => 0,
     source_z2                   => 'Z2NET',
     set_volume_on_power_z2      => 0,
     power_volume_z2             => 30,
     pause_on_off_or_source_z2   => 0,
     resume_on_source_z2         => 0,
+    play_playlist_on_power_z2   => 0,
+    playlist_type_z2            => 'standard', # 'standard' or 'dynamic' (via Dynamic Playlists v4.7.1)
+    playlist_z2                 => '',
+    dynamic_playlist_z2         => '',
+    shuffle_z2                  => 0,
+    play_only_if_empty_z2       => 0,
     sync_volume                 => 1,
     poll_interval               => 2,
 });
@@ -44,10 +60,12 @@ my %syncing_clients;
 my %last_marantz_synced_vol;
 my %last_marantz_vol_sync_time;
 my %last_poweron_time;
+my %last_playlist_start_time;
 my %mismatch_counter;
 my %match_counter;
 my %receiver_power_state;     # 'ON' or 'STANDBY'
 my %receiver_source_state;    # last reported source (e.g. 'SAT/CBL', 'GAME1')
+my %receiver_surround_state;  # last reported surround/sound mode (e.g. 'STEREO', 'MCH STEREO')
 my %zone_is_playing;          # 1 if currently active/playing in this zone
 my %zone_awaiting_resume;     # 1 if zone was auto-paused or waiting for receiver to return to Lyrion
 my %internal_auto_pause;      # 1 while plugin is executing fail-safe auto-pause
@@ -112,6 +130,52 @@ sub _getTargetPort {
     return $port ne '' ? $port : '8080';
 }
 
+sub _formatSoundModeCmd {
+    my $mode = shift;
+    return '' unless defined $mode;
+    $mode =~ s/^\s+|\s+$//g;
+    $mode =~ s/^\?//;
+    return '' if $mode eq '' || $mode eq 'NONE';
+    # Normalize: Marantz surround direct command starts with 'MS' (e.g. MSSTEREO, MSDIRECT, MSMCH STEREO, MSVIRTUAL)
+    $mode = 'MS' . $mode unless ($mode =~ /^MS/i);
+    return $mode;
+}
+
+# Clean sound mode dispatcher
+sub _sendSoundModeCommand {
+    my ($ip, $port, $sound_mode_cmd, $zone) = @_;
+    return unless $ip && $sound_mode_cmd;
+
+    $sound_mode_cmd =~ s/^\s+|\s+$//g;
+    return if $sound_mode_cmd eq '' || $sound_mode_cmd eq 'NONE';
+
+    my $url_sound_mode = "http://$ip:$port/goform/formiPhoneAppDirect.xml?$sound_mode_cmd";
+    _infoLog("[ACTION OUT] Dispatching Sound Mode command: $sound_mode_cmd -> $url_sound_mode");
+    _sendHttpRequest($url_sound_mode);
+}
+
+sub _formatRoomPresetCmd {
+    my $preset = shift;
+    return '' unless defined $preset;
+    $preset =~ s/^\s+|\s+$//g;
+    $preset =~ s/^\?//;
+    return '' if $preset eq '' || $preset eq 'NONE';
+    return $preset;
+}
+
+# Clean Dirac / Audyssey room calibration preset dispatcher
+sub _sendRoomPresetCommand {
+    my ($ip, $port, $preset_cmd, $zone) = @_;
+    return unless $ip && $preset_cmd;
+
+    $preset_cmd =~ s/^\s+|\s+$//g;
+    return if $preset_cmd eq '' || $preset_cmd eq 'NONE';
+
+    my $url_preset = "http://$ip:$port/goform/formiPhoneAppDirect.xml?$preset_cmd";
+    _infoLog("[ACTION OUT] Dispatching Dirac/Audyssey Preset command: $preset_cmd -> $url_preset");
+    _sendHttpRequest($url_preset);
+}
+
 sub initPlugin {
     my $class = shift;
     $class->SUPER::initPlugin(@_);
@@ -137,7 +201,16 @@ sub initPlugin {
 
     # Re-evaluate polling immediately on preference changes
     eval {
-        $prefs->setChange(\&checkAndManagePolling, qw(sync_volume poll_interval ip port mac_z1 mac_z2));
+        $prefs->setChange(\&checkAndManagePolling, qw(sync_volume poll_interval ip port mac_z1 mac_z2 power_on_z1 source_z1 set_sound_mode_on_power_z1 sound_mode_z1 set_room_preset_on_power_z1 room_preset_z1 play_playlist_on_power_z1 playlist_type_z1 playlist_z1 dynamic_playlist_z1 shuffle_z1 play_only_if_empty_z1 power_on_z2 source_z2 play_playlist_on_power_z2 playlist_type_z2 playlist_z2 dynamic_playlist_z2 shuffle_z2 play_only_if_empty_z2));
+    };
+
+    # Register AJAX playlists and receiver detection endpoints
+    eval {
+        require Slim::Web::Pages;
+        Slim::Web::Pages->addPageFunction('plugins/MarantzHTTP/playlists.json', \&Plugins::MarantzHTTP::Settings::getPlaylistsAjax);
+        Slim::Web::Pages->addPageFunction('settings/plugins/MarantzHTTP/playlists.json', \&Plugins::MarantzHTTP::Settings::getPlaylistsAjax);
+        Slim::Web::Pages->addPageFunction('plugins/MarantzHTTP/detect.json', \&Plugins::MarantzHTTP::Settings::detectReceiverAjax);
+        Slim::Web::Pages->addPageFunction('settings/plugins/MarantzHTTP/detect.json', \&Plugins::MarantzHTTP::Settings::detectReceiverAjax);
     };
 
     my $target_ip = _getTargetIp() || '[Not Configured]';
@@ -209,12 +282,13 @@ sub playTriggerCallback {
         return;
     }
 
-    # 2. Strictly ignore Stop commands, track jump/seek/index
+    # 2. Strictly ignore Stop commands, track jump/seek/index/time
     if ($request->isCommand([['stop']]) || 
         $request->isCommand([['playlist'], ['stop']]) || 
-        $request->isCommand([['playlist'], ['jump']]) ||
-        $request->isCommand([['playlist'], ['index']])) {
-        _debugLog("[EVENT IN] playTriggerCallback ignored for '$client_name': command is stop/jump/index ('$req_str')");
+        $request->isCommand([['playlist'], ['jump']]) || 
+        $request->isCommand([['playlist'], ['index']]) ||
+        $request->isCommand([['time']])) {
+        _debugLog("[EVENT IN] playTriggerCallback ignored for '$client_name': command is stop/jump/index/time ('$req_str')");
         return;
     }
 
@@ -249,7 +323,20 @@ sub playTriggerCallback {
         }
     }
 
-    # 5. Playback confirmed active or starting! Ensure receiver is ON and set to Lyrion source!
+    # 5. Check if playback is ALREADY active and AVR is already ON and on correct source:
+    # Gapless playback prebuffering (LMS issues 'playlist open' ~10s before track end),
+    # seeking inside the current track, or transitioning between playlist tracks should
+    # NEVER re-trigger power or source commands when everything is already running!
+    my $configured_source = ($zone eq 'MV') ? $prefs->get('source_z1') : $prefs->get('source_z2');
+    my $is_already_on = ($receiver_power_state{$zone} && $receiver_power_state{$zone} eq 'ON');
+    my $is_source_match = ($receiver_source_state{$zone} && _isSourceMatch($configured_source, $receiver_source_state{$zone}));
+
+    if ($client->isPlaying() && $zone_is_playing{$zone} && $is_already_on && $is_source_match) {
+        _debugLog("[EVENT IN] playTriggerCallback ignored for '$client_name': playback already active and receiver confirmed ON on correct source ('$req_str')");
+        return;
+    }
+
+    # 6. Playback confirmed active or starting! Ensure receiver is ON and set to Lyrion source!
     ensurePowerAndSource($client, $zone, "Trigger: $req_str");
 }
 
@@ -290,9 +377,10 @@ sub ensurePowerAndSource {
         my $power_cmd = $power_on_enabled ? 'ZMON' : undef;
         my $source_cmd = $prefs->get('source_z1') || 'SISAT/CBL';
         my $vol = (!$is_already_on && $prefs->get('set_volume_on_power_z1')) ? $prefs->get('power_volume_z1') : undef;
+        my $sm_log = $prefs->get('set_sound_mode_on_power_z1') ? _formatSoundModeCmd($prefs->get('sound_mode_z1')) : 'DISABLED';
 
-        _infoLog(sprintf("[TRIGGER] Ensuring Power & Source for Main Zone ('%s') | Reason: %s | PowerCmd: %s | Source: %s | InitialVol: %s | AVR: %s",
-            $client_name, $reason || 'Play Trigger', $power_cmd // 'NONE', $source_cmd // 'NONE', defined $vol ? $vol : 'PRESERVED', $is_already_on ? 'ON' : 'STANDBY/UNKNOWN'));
+        _infoLog(sprintf("[TRIGGER] Ensuring Power & Source for Main Zone ('%s') | Reason: %s | PowerCmd: %s | Source: %s | SoundMode: %s | InitialVol: %s | AVR: %s",
+            $client_name, $reason || 'Play Trigger', $power_cmd // 'NONE', $source_cmd // 'NONE', $sm_log || 'DISABLED', defined $vol ? $vol : 'PRESERVED', $is_already_on ? 'ON' : 'STANDBY/UNKNOWN'));
 
         _sendPowerSourceAndVolume($ip, $port, $power_cmd, $source_cmd, $zone, $vol, $client, $is_already_on);
     } elsif ($zone eq 'Z2') {
@@ -348,16 +436,19 @@ sub playbackCallback {
             my $configured_source = ($zone eq 'MV') ? $prefs->get('source_z1') : $prefs->get('source_z2');
             my $receiver_is_on_other_source = ($receiver_source_state{$zone} && !_isSourceMatch($configured_source, $receiver_source_state{$zone}));
 
-            my $is_newsong = ($request->isCommand([['playlist'], ['newsong']]) || $req_str =~ /\bnewsong\b/i);
+            my $is_newsong = ($request->isCommand([['playlist'], ['newsong']]) || 
+                              $request->isCommand([['playlist'], ['open']]) || 
+                              $request->isCommand([['time']]) ||
+                              $req_str =~ /\b(?:newsong|open|time)\b/i);
             my $is_already_active = ($zone_is_playing{$zone} && 
                                      $receiver_power_state{$zone} && $receiver_power_state{$zone} eq 'ON' &&
                                      $receiver_source_state{$zone} && _isSourceMatch($configured_source, $receiver_source_state{$zone}));
 
-            # Avoid track-change audio dropouts: Do NOT send power/source switch commands if AVR is already ON and playing
+            # Avoid track-change and seek audio dropouts: Do NOT send power/source switch commands if AVR is already ON and playing
             if ($is_newsong || $is_already_active) {
                 $zone_is_playing{$zone} = 1;
-                _debugLog("[PLAYBACK] Track transition or steady playback on '$client_name' (Zone $zone). Receiver confirmed ON and on correct source. Suppressed redundant commands.");
-            } elsif ($now - $last_start > 4 && !$receiver_is_on_other_source) {
+                _debugLog("[PLAYBACK] Track transition, seek or steady playback on '$client_name' (Zone $zone). Receiver confirmed ON and on correct source. Suppressed redundant commands.");
+            } elsif ($now - $last_start > 4 && !$receiver_is_on_other_source && (!$receiver_power_state{$zone} || $receiver_power_state{$zone} ne 'ON')) {
                 _infoLog("[PLAYBACK SAFETY] Active playback detected on '$client_name' (Zone $zone). Ensuring Marantz power & source.");
                 ensurePowerAndSource($client, $zone, "Playback active safety: $req_str");
             } else {
@@ -428,6 +519,37 @@ sub _sendPowerSourceAndVolume {
         }
     }
 
+    # 2b. Sound Mode command (Main Zone - Stereo, Direct, Multi Ch Stereo, Virtual, etc.)
+    # ONLY executed upon initial power-on from Standby/Off to prevent audio interruptions during playback!
+    if ($zone eq 'MV' && !$is_already_on) {
+        my $sound_mode_cmd = _formatSoundModeCmd($prefs->get('sound_mode_z1'));
+        my $sound_mode_enabled = $prefs->get('set_sound_mode_on_power_z1') ? 1 : 0;
+        if ($sound_mode_enabled && $sound_mode_cmd) {
+            # Stagger dispatch after power and source (+1.6s delay) so audio DSP/DAC is initialized
+            _debugLog("[ACTION OUT] Scheduling initial power-on Sound Mode command: $sound_mode_cmd (+1600ms delay)");
+            my $timer_sub_sm = sub {
+                _debugLog("[ACTION OUT] Executing delayed Sound Mode command on power-on: $sound_mode_cmd");
+                _sendSoundModeCommand($ip, $port, $sound_mode_cmd, $zone);
+            };
+            Slim::Utils::Timers::setTimer(undef, $now + 1.6, $timer_sub_sm);
+            push @{ $zone_pending_timers{$zone} }, $timer_sub_sm if $zone_pending_timers{$zone};
+        }
+
+        # 2c. Dirac / Audyssey Room Calibration Preset command (Main Zone)
+        my $room_preset_cmd = _formatRoomPresetCmd($prefs->get('room_preset_z1'));
+        my $room_preset_enabled = $prefs->get('set_room_preset_on_power_z1') ? 1 : 0;
+        if ($room_preset_enabled && $room_preset_cmd) {
+            # Stagger dispatch (+1.8s delay) right after sound mode so audio DSP is ready
+            _debugLog("[ACTION OUT] Scheduling initial power-on Dirac/Audyssey Preset command: $room_preset_cmd (+1800ms delay)");
+            my $timer_sub_rp = sub {
+                _debugLog("[ACTION OUT] Executing delayed Dirac/Audyssey Preset command on power-on: $room_preset_cmd");
+                _sendRoomPresetCommand($ip, $port, $room_preset_cmd, $zone);
+            };
+            Slim::Utils::Timers::setTimer(undef, $now + 1.8, $timer_sub_rp);
+            push @{ $zone_pending_timers{$zone} }, $timer_sub_rp if $zone_pending_timers{$zone};
+        }
+    }
+
     # 3. Initial Volume (only on initial power-on from Standby/Off)
     if (!$is_already_on && defined $initial_volume && $initial_volume ne '') {
         my $vol = int($initial_volume);
@@ -459,6 +581,271 @@ sub _sendPowerSourceAndVolume {
         Slim::Utils::Timers::setTimer(undef, $now + 2.0, $timer_sub3);
         push @{ $zone_pending_timers{$zone} }, $timer_sub3;
     }
+
+    # 4. Startup Playlist Autoplay on Receiver Power-ON
+    if (!$is_already_on && $power_cmd) {
+        _playConfiguredPlaylist($client, $zone, 'Plugin Power-On Command');
+    }
+}
+
+# --------------------------------------------------------------------------
+# Startup Playlist Autoplay Manager
+# Loads and plays selected playlist from playlist folder with optional shuffle
+# --------------------------------------------------------------------------
+sub _loadAndPlayPlaylist {
+    my ($client, $playlist, $shuffle) = @_;
+    return unless $client && defined $playlist && $playlist ne '';
+
+    my $client_name = eval { $client->name() } || $client->id() || 'player';
+    _infoLog("[AUTOPLAY TASK] Start playlist inladen: '$playlist' voor '$client_name' (Shuffle: $shuffle)");
+
+    # 1. Stop en wis eventuele bestaande wachtrij
+    eval { $client->execute(['playlist', 'clear']); };
+
+    # 2. Stel shuffle modus in (1 = tracks, 0 = uit)
+    eval { $client->execute(['playlist', 'shuffle', $shuffle ? 1 : 0]); };
+
+    # 3. Detecteer type playlist: bestandspad, URL of database naam/ID
+    my $url_to_play = '';
+    if ($playlist =~ m{^(?:file|https?|db):}i) {
+        $url_to_play = $playlist;
+    } elsif (-f $playlist) {
+        $url_to_play = "file://$playlist";
+    }
+
+    # Zoek indien nodig via Slim::Schema
+    unless ($url_to_play) {
+        eval {
+            require Slim::Schema;
+            my $pl_obj = Slim::Schema->single('Playlist', { 'title' => $playlist })
+                      || Slim::Schema->find('Playlist', $playlist)
+                      || Slim::Schema->objectForUrl({ 'url' => $playlist, playlist => 1 })
+                      || Slim::Schema->objectForUrl({ 'url' => "file://$playlist", playlist => 1 });
+            if ($pl_obj && eval { $pl_obj->can('url') }) {
+                $url_to_play = $pl_obj->url;
+            }
+        };
+    }
+
+    # 4. Voer de LMS laad-opdracht uit
+    if ($url_to_play) {
+        _infoLog("[AUTOPLAY TASK] Playlist afspelen via URL: $url_to_play");
+        eval { $client->execute(['playlist', 'play', $url_to_play]); };
+    } else {
+        _infoLog("[AUTOPLAY TASK] Playlist afspelen via playlistcontrol / title: $playlist");
+        eval {
+            require Slim::Control::Request;
+            Slim::Control::Request::executeRequest($client, ['playlistcontrol', 'cmd:load', "playlist_name:$playlist"]);
+        };
+        # Fallback directe play
+        eval { $client->execute(['playlist', 'play', $playlist]); };
+    }
+
+    # 5. Bevestig nummer-shuffle en forceer Play
+    if ($shuffle) {
+        eval { $client->execute(['playlist', 'shuffle', 1]); };
+    } else {
+        eval { $client->execute(['playlist', 'shuffle', 0]); };
+    }
+    eval { $client->execute(['play']); };
+    _infoLog("[AUTOPLAY TASK] Playlist succesvol gestart op '$client_name'!");
+}
+
+# --------------------------------------------------------------------------
+# Dynamic Playlists (v4.7.1) Manager: Continuous Smart Playlist Execution
+# --------------------------------------------------------------------------
+sub _loadAndPlayDynamicPlaylist {
+    my ($client, $dpl_id, $shuffle) = @_;
+    return unless $client && defined $dpl_id && $dpl_id ne '';
+
+    my $client_name = eval { $client->name() } || $client->id() || 'player';
+    _infoLog("[AUTOPLAY DYNAMIC v4.7.1] Starten van Dynamic Playlist: '$dpl_id' voor '$client_name' (Shuffle: $shuffle)");
+
+    # 1. Bepaal kandidaat ID's (bijv. 'topliedjes' -> 'dplccustom_topliedjes', 'sqlplaylist_topliedjes', etc.)
+    my $clean_id = $dpl_id;
+    $clean_id =~ s/^\s+|\s+$//g;
+
+    my @candidate_ids;
+
+    # Kijk eerst of Settings::getAvailableDynamicPlaylists een exacte match kent
+    eval {
+        require Plugins::MarantzHTTP::Settings;
+        my $known = Plugins::MarantzHTTP::Settings::getAvailableDynamicPlaylists(0);
+        if ($known && ref($known) eq 'ARRAY') {
+            for my $item (@$known) {
+                my $iid = $item->{id} || '';
+                my $ititle = $item->{title} || '';
+                my $iraw = $item->{raw_name} || '';
+                if (lc($iid) eq lc($clean_id) || lc($ititle) =~ /\b\Q$clean_id\E\b/i || lc($iraw) eq lc($clean_id)) {
+                    push @candidate_ids, $iid;
+                    last;
+                }
+            }
+        }
+    };
+
+    my $stripped = $clean_id;
+    $stripped =~ s/\.(sql|dpl|xml)$//i;
+    $stripped =~ s/^(dplccustom_|dplcustom_|dplusercustom_|sqlplaylist_|dynamicplaylist_|custom_|dplc_|dpl_|sql_)//i;
+
+    push @candidate_ids, $clean_id;
+    push @candidate_ids, lc($clean_id);
+    push @candidate_ids, $stripped;
+    push @candidate_ids, lc($stripped);
+    push @candidate_ids, "dplccustom_" . lc($stripped);
+    push @candidate_ids, "sqlplaylist_" . lc($stripped);
+    push @candidate_ids, "sqlplaylist_" . lc($stripped) . ".sql";
+    push @candidate_ids, lc($stripped) . ".sql";
+    push @candidate_ids, "custom_" . lc($stripped);
+    push @candidate_ids, "dplcustom_" . lc($stripped);
+    push @candidate_ids, "dplusercustom_" . lc($stripped);
+
+    # Ontdubbel kandidaten met behoud van volgorde
+    my %seen_cands;
+    @candidate_ids = grep { defined $_ && $_ ne '' && !$seen_cands{$_}++ } @candidate_ids;
+
+    # 2. Stel shuffle in op de speler
+    eval { $client->execute(['playlist', 'shuffle', $shuffle ? 1 : 0]); };
+
+    # 3. Probeer Dynamic Playlists activatie met de kandidaat ID's
+    my $activated_id = '';
+    my $total_tracks = 0;
+
+    for my $cid (@candidate_ids) {
+        _infoLog("[AUTOPLAY DYNAMIC v4.7.1] Probeer Dynamic Playlist activatie met ID: '$cid' op '$client_name'...");
+
+        # Poging A: Standaard LMS CLI execute
+        eval {
+            $client->execute(['dynamicplaylist', 'playlist', 'play', $cid]);
+        };
+
+        $total_tracks = eval { $client->playlistLength() } || 0;
+        if ($total_tracks > 0) {
+            $activated_id = $cid;
+            _infoLog("[AUTOPLAY DYNAMIC v4.7.1] Gelukt via client->execute! Wachtrij bevat $total_tracks tracks (ID: '$cid').");
+            last;
+        }
+
+        # Poging B: Slim::Control::Request
+        eval {
+            require Slim::Control::Request;
+            Slim::Control::Request::executeRequest($client, ['dynamicplaylist', 'playlist', 'play', $cid]);
+        };
+
+        $total_tracks = eval { $client->playlistLength() } || 0;
+        if ($total_tracks > 0) {
+            $activated_id = $cid;
+            _infoLog("[AUTOPLAY DYNAMIC v4.7.1] Gelukt via Slim::Control::Request! Wachtrij bevat $total_tracks tracks (ID: '$cid').");
+            last;
+        }
+
+        # Poging C: Alternatieve CLI syntax zonder 'playlist': ['dynamicplaylist', 'play', $cid]
+        eval {
+            $client->execute(['dynamicplaylist', 'play', $cid]);
+        };
+
+        $total_tracks = eval { $client->playlistLength() } || 0;
+        if ($total_tracks > 0) {
+            $activated_id = $cid;
+            _infoLog("[AUTOPLAY DYNAMIC v4.7.1] Gelukt via ['dynamicplaylist', 'play', '$cid']! ($total_tracks tracks).");
+            last;
+        }
+
+        # Poging D: Directe Perl method aanroep indien Plugins::DynamicPlayLists::Plugin actief is
+        eval {
+            require Slim::Utils::PluginManager;
+            if (Slim::Utils::PluginManager->isEnabled('Plugins::DynamicPlayLists::Plugin') || eval { require Plugins::DynamicPlayLists::Plugin; 1 }) {
+                if (Plugins::DynamicPlayLists::Plugin->can('playPlaylist')) {
+                    Plugins::DynamicPlayLists::Plugin::playPlaylist($client, $cid);
+                }
+            }
+        };
+
+        $total_tracks = eval { $client->playlistLength() } || 0;
+        if ($total_tracks > 0) {
+            $activated_id = $cid;
+            _infoLog("[AUTOPLAY DYNAMIC v4.7.1] Gelukt via Plugins::DynamicPlayLists::Plugin::playPlaylist (ID: '$cid').");
+            last;
+        }
+    }
+
+    # 4. Zorg dat weergave start
+    eval { $client->execute(['play']); };
+
+    if ($activated_id) {
+        _infoLog("[AUTOPLAY DYNAMIC v4.7.1] Dynamic Playlist '$activated_id' (invoer: '$dpl_id') succesvol geactiveerd op '$client_name' via Dynamic Playlists (v4.7.1)!");
+    } else {
+        _warnLog("[AUTOPLAY DYNAMIC v4.7.1] Dynamic Playlist '$dpl_id' kon niet direct worden gevonden onder kandidaat-ID's (" . join(', ', @candidate_ids) . "). Controleer of de playlist in Dynamic Playlist Creator of LMS bestaat.");
+    }
+}
+
+sub _playConfiguredPlaylist {
+    my ($client, $zone, $reason) = @_;
+    return unless $client && $zone;
+
+    my $enabled = ($zone eq 'MV') ? $prefs->get('play_playlist_on_power_z1') : $prefs->get('play_playlist_on_power_z2');
+    return unless $enabled;
+
+    my $playlist_type = ($zone eq 'MV') ? ($prefs->get('playlist_type_z1') || 'standard') : ($prefs->get('playlist_type_z2') || 'standard');
+
+    my $playlist = '';
+    if ($playlist_type eq 'dynamic') {
+        $playlist = ($zone eq 'MV') ? $prefs->get('dynamic_playlist_z1') : $prefs->get('dynamic_playlist_z2');
+    } else {
+        $playlist = ($zone eq 'MV') ? $prefs->get('playlist_z1') : $prefs->get('playlist_z2');
+    }
+    return unless defined $playlist && $playlist ne '';
+
+    my $raw_shuffle = ($zone eq 'MV') ? ($prefs->get('shuffle_z1') // 0) : ($prefs->get('shuffle_z2') // 0);
+    # Enforce track shuffle only (1 = tracks, 0 = off).
+    my $shuffle = ($raw_shuffle == 1) ? 1 : 0;
+
+    my $client_name = eval { $client->name() } || $client->id() || 'player';
+
+    # Optional check: only play if player's queue is empty
+    my $only_if_empty = ($zone eq 'MV') ? $prefs->get('play_only_if_empty_z1') : $prefs->get('play_only_if_empty_z2');
+    if ($only_if_empty) {
+        my $is_playing = eval { $client->isPlaying() } || 0;
+        my $queue_count = eval { Slim::Player::Playlist::count($client) };
+        unless (defined $queue_count) {
+            $queue_count = eval { scalar(@{Slim::Player::Playlist::playList($client) || []}) } || 0;
+        }
+        if ($queue_count > 0 || $is_playing) {
+            _infoLog(sprintf("[AUTOPLAY OVERSLAAN] %s '%s' NIET gestart op '%s' (Zone %s): wachtrij bevat %d tracks (isPlaying=%d) en 'Alleen als wachtrij leeg is' is actief.",
+                ($playlist_type eq 'dynamic' ? 'Dynamic Playlist' : 'Playlist'), $playlist, $client_name, $zone, $queue_count, $is_playing));
+            return;
+        }
+    }
+
+    my $now = time();
+    # Debounce: avoid restarting playlist within 10 seconds
+    if ($last_playlist_start_time{$zone} && ($now - $last_playlist_start_time{$zone} < 10)) {
+        _debugLog("[AUTOPLAY] Zone $zone playlist start onderdrukt (recent trigger actief: " . ($now - $last_playlist_start_time{$zone}) . "s geleden).");
+        return;
+    }
+    $last_playlist_start_time{$zone} = $now;
+    $last_poweron_time{$zone} = $now;
+    $zone_is_playing{$zone} = 1;
+    $zone_awaiting_resume{$zone} = 0;
+
+    _infoLog(sprintf("[AUTOPLAY] Marantz Inschakelen: Starten van %s '%s' op '%s' (Zone %s, Shuffle: %d, Reden: %s)",
+        ($playlist_type eq 'dynamic' ? 'Dynamic Playlist' : 'Standaard Playlist'),
+        $playlist, $client_name, $zone, $shuffle, $reason || 'Power On'));
+
+    my $now_hires = eval { require Time::HiRes; Time::HiRes::time() } || time();
+    require Slim::Utils::Timers;
+
+    # Small 1.0s delay so Marantz audio DAC / HDMI / input negotiation is ready
+    my $play_task = sub {
+        if ($playlist_type eq 'dynamic') {
+            _loadAndPlayDynamicPlaylist($client, $playlist, $shuffle);
+        } else {
+            _loadAndPlayPlaylist($client, $playlist, $shuffle);
+        }
+    };
+
+    Slim::Utils::Timers::setTimer(undef, $now_hires + 1.0, $play_task);
+    push @{ $zone_pending_timers{$zone} }, $play_task if $zone_pending_timers{$zone};
 }
 
 # --------------------------------------------------------------------------
@@ -577,6 +964,38 @@ sub getClientZone {
     return '';
 }
 
+sub _getClientForZone {
+    my $zone = shift;
+    my @clients = eval { Slim::Player::Client::clients() };
+    return undef unless scalar(@clients);
+
+    my $target_mac = lc(($zone eq 'MV') ? ($prefs->get('mac_z1') || '') : ($prefs->get('mac_z2') || ''));
+    $target_mac =~ s/[^a-f0-9]//g;
+
+    if ($target_mac) {
+        for my $c (@clients) {
+            next unless $c;
+            my $mac = lc(eval { $c->macAddress() } || $c->id() || '');
+            $mac =~ s/[^a-f0-9]//g;
+            return $c if $mac eq $target_mac;
+        }
+    }
+
+    # Fallback for Zone 1: if only 1 player or if no explicit MAC set, use primary player
+    if ($zone eq 'MV') {
+        my $mac_z2 = lc($prefs->get('mac_z2') || '');
+        $mac_z2 =~ s/[^a-f0-9]//g;
+        for my $c (@clients) {
+            next unless $c;
+            my $mac = lc(eval { $c->macAddress() } || $c->id() || '');
+            $mac =~ s/[^a-f0-9]//g;
+            return $c if !$mac_z2 || ($mac ne $mac_z2);
+        }
+        return $clients[0];
+    }
+    return undef;
+}
+
 # --------------------------------------------------------------------------
 # Playback Monitoring & Polling Management
 # --------------------------------------------------------------------------
@@ -584,30 +1003,22 @@ sub shouldPollMarantz {
     my $ip = _getTargetIp();
     return 0 unless $ip;
 
-    # 1. Continuous Polling: If bidirectional volume sync is enabled, ALWAYS keep background polling running!
-    my $sync_vol = $prefs->get('sync_volume');
-    if ($sync_vol) {
-        return 1;
-    }
+    # 1. Volume sync enabled
+    return 1 if $prefs->get('sync_volume');
 
-    # 2. Playback / Auto-Resume monitoring: Check connected players
+    # 2. Startup playlist enabled on Zone 1 or Zone 2 (MUST poll to detect receiver power-on!)
+    return 1 if ($prefs->get('play_playlist_on_power_z1') || $prefs->get('play_playlist_on_power_z2'));
+
+    # 3. Fail-safe auto-pause / auto-resume enabled on Zone 1 or Zone 2
+    return 1 if ($prefs->get('pause_on_off_or_source_z1') || $prefs->get('resume_on_source_z1') ||
+                 $prefs->get('pause_on_off_or_source_z2') || $prefs->get('resume_on_source_z2'));
+
+    # 4. Any client is playing
     my @clients = eval { Slim::Player::Client::clients() };
     for my $client (@clients) {
-        next unless $client;
-        my $zone = getClientZone($client);
-        next unless $zone;
-
-        # Active playing player
-        if ($client->isPlaying()) {
-            return 1;
-        }
-
-        # Auto-resume monitoring when paused or stopped with resume enabled
-        my $resume_enabled = ($zone eq 'MV') ? $prefs->get('resume_on_source_z1') : $prefs->get('resume_on_source_z2');
-        if ($resume_enabled && ($zone_awaiting_resume{$zone} || $client->isPaused())) {
-            return 1;
-        }
+        return 1 if $client && $client->isPlaying();
     }
+
     return 0;
 }
 
@@ -666,50 +1077,17 @@ sub pollActiveMarantzZones {
     my $port = _getTargetPort();
     return unless $ip;
 
-    my %active_zones;
-    my $sync_vol = $prefs->get('sync_volume');
-    my @clients = eval { Slim::Player::Client::clients() };
+    my $client_z1 = _getClientForZone('MV');
+    my $client_z2 = _getClientForZone('Z2');
 
-    for my $client (@clients) {
-        next unless $client;
-        my $zone = getClientZone($client);
-        next unless $zone;
-
-        # If sync_volume is enabled, keep zone active for volume sync
-        if ($sync_vol) {
-            $active_zones{$zone} ||= $client;
-        } elsif ($client->isPlaying()) {
-            $active_zones{$zone} ||= $client;
-        } elsif ($client->isPaused()) {
-            my $resume_enabled = ($zone eq 'MV') ? $prefs->get('resume_on_source_z1') : $prefs->get('resume_on_source_z2');
-            if ($resume_enabled) {
-                $active_zones{$zone} ||= $client;
-            }
-        } elsif (!$client->isPlaying()) {
-            my $resume_enabled = ($zone eq 'MV') ? $prefs->get('resume_on_source_z1') : $prefs->get('resume_on_source_z2');
-            if ($resume_enabled && $zone_awaiting_resume{$zone}) {
-                $active_zones{$zone} ||= $client;
-            }
-        }
-    }
-
-    # Fallback auto-map: If sync_volume is enabled and at least one player is connected,
-    # but Zone 1 has not been matched explicitly yet, map the primary connected player to Main Zone
-    if ($sync_vol && scalar(@clients) > 0 && !$active_zones{'MV'}) {
-        my $primary_client = $clients[0];
-        my $z2_client = $active_zones{'Z2'};
-        if (!$z2_client || ($primary_client->id() ne $z2_client->id())) {
-            $active_zones{'MV'} = $primary_client;
-        }
-    }
-
-    if ($active_zones{'MV'}) {
+    # Always poll Main Zone if player is available or configured
+    if ($client_z1) {
         _debugLog("[POLL OUT] Polling Main Zone XML status from $ip:$port...");
-        _queryMarantzStatus($ip, $port, 'MV', 'formMainZone_MainZoneXmlStatusLite.xml', $active_zones{'MV'});
+        _queryMarantzStatus($ip, $port, 'MV', 'formMainZone_MainZoneXmlStatusLite.xml', $client_z1);
     }
-    if ($active_zones{'Z2'}) {
+    if ($client_z2 && ($prefs->get('mac_z2') || $prefs->get('power_on_z2') || $prefs->get('play_playlist_on_power_z2'))) {
         _debugLog("[POLL OUT] Polling Zone 2 XML status from $ip:$port...");
-        _queryMarantzStatus($ip, $port, 'Z2', 'formZone2_Zone2XmlStatusLite.xml', $active_zones{'Z2'});
+        _queryMarantzStatus($ip, $port, 'Z2', 'formZone2_Zone2XmlStatusLite.xml', $client_z2);
     }
 }
 
@@ -795,6 +1173,14 @@ sub _handleMarantzXmlResponse {
 
     $raw_input = uc($raw_input) if defined $raw_input;
 
+    # Extract Surround / Sound Mode (Zone 1)
+    my $raw_surround = _extractXmlTagValue($content, 'selectSurround') 
+                    // _extractXmlTagValue($content, 'SurroundMode')
+                    // _extractXmlTagValue($content, 'surroundMode');
+    if (defined $raw_surround && $raw_surround ne '') {
+        $receiver_surround_state{$zone} = uc($raw_surround);
+    }
+
     # Record previous power and source states to detect physical AVR transitions
     my $prev_power  = $receiver_power_state{$zone}  || 'UNKNOWN';
     my $prev_source = $receiver_source_state{$zone} || 'UNKNOWN';
@@ -818,6 +1204,79 @@ sub _handleMarantzXmlResponse {
     my $source_matches = 1;
     if (!$is_standby && defined $raw_input && $raw_input ne '') {
         $source_matches = _isSourceMatch($configured_source, $raw_input);
+    }
+
+    # Detect AVR Power-ON transition (STANDBY/OFF -> ON)
+    my $power_turned_on = ($prev_power eq 'STANDBY' && !$is_standby);
+    if ($power_turned_on) {
+        _infoLog("[POWER EVENT] Marantz Zone $zone is ingeschakeld (STANDBY -> ON)!");
+
+        # Bekrachtig geluidsmodus (Sound Mode) voor Hoofdzone indien geconfigureerd
+        if ($zone eq 'MV') {
+            my $sm_cmd = _formatSoundModeCmd($prefs->get('sound_mode_z1'));
+            my $sm_enabled = $prefs->get('set_sound_mode_on_power_z1') ? 1 : 0;
+            my $ip = _getTargetIp();
+            my $port = _getTargetPort();
+            if ($sm_enabled && $sm_cmd && $ip) {
+                _infoLog("[POWER EVENT] Geluidsmodus bekrachtigen voor Hoofdzone bij inschakelen: $sm_cmd");
+                _sendSoundModeCommand($ip, $port, $sm_cmd, $zone);
+            }
+
+            my $rp_cmd = _formatRoomPresetCmd($prefs->get('room_preset_z1'));
+            my $rp_enabled = $prefs->get('set_room_preset_on_power_z1') ? 1 : 0;
+            if ($rp_enabled && $rp_cmd && $ip) {
+                _infoLog("[POWER EVENT] Dirac/Audyssey preset bekrachtigen voor Hoofdzone bij inschakelen: $rp_cmd");
+                _sendRoomPresetCommand($ip, $port, $rp_cmd, $zone);
+            }
+        }
+
+        my $play_playlist = ($zone eq 'MV') ? $prefs->get('play_playlist_on_power_z1') : $prefs->get('play_playlist_on_power_z2');
+        if ($play_playlist) {
+            # Zorg dat de ingangsbron bekrachtigd wordt indien geconfigureerd
+            if ($configured_source && $configured_source ne '') {
+                my $src_cmd = $configured_source;
+                $src_cmd =~ s/^\s+|\s+$//g;
+                $src_cmd =~ s/^\?//;
+                my $ip = _getTargetIp();
+                my $port = _getTargetPort();
+                if ($ip && $src_cmd) {
+                    _infoLog("[POWER EVENT] Ingangsbron bekrachtigen: $src_cmd");
+                    _sendHttpRequest("http://$ip:$port/goform/formiPhoneAppDirect.xml?$src_cmd");
+                }
+            }
+
+            _playConfiguredPlaylist($client, $zone, 'AVR Power-On Detected');
+        }
+    }
+
+    # Detecteer wisselen van ingangsbron naar Lyrion terwijl Marantz al aan staat
+    my $source_switched_to_lyrion = (!$is_standby && $prev_source ne 'UNKNOWN' && !_isSourceMatch($configured_source, $prev_source) && $source_matches);
+    if ($source_switched_to_lyrion) {
+        _infoLog("[SOURCE EVENT] Marantz Zone $zone bron gewijzigd naar Lyrion '$configured_source'.");
+
+        # Bekrachtig geluidsmodus bij wisselen naar Lyrion indien gewenst
+        if ($zone eq 'MV') {
+            my $sm_cmd = _formatSoundModeCmd($prefs->get('sound_mode_z1'));
+            my $sm_enabled = $prefs->get('set_sound_mode_on_power_z1') ? 1 : 0;
+            my $ip = _getTargetIp();
+            my $port = _getTargetPort();
+            if ($sm_enabled && $sm_cmd && $ip) {
+                _infoLog("[SOURCE EVENT] Geluidsmodus bekrachtigen voor Lyrion: $sm_cmd");
+                _sendSoundModeCommand($ip, $port, $sm_cmd, $zone);
+            }
+
+            my $rp_cmd = _formatRoomPresetCmd($prefs->get('room_preset_z1'));
+            my $rp_enabled = $prefs->get('set_room_preset_on_power_z1') ? 1 : 0;
+            if ($rp_enabled && $rp_cmd && $ip) {
+                _infoLog("[SOURCE EVENT] Dirac/Audyssey preset bekrachtigen voor Lyrion: $rp_cmd");
+                _sendRoomPresetCommand($ip, $port, $rp_cmd, $zone);
+            }
+        }
+
+        my $play_playlist = ($zone eq 'MV') ? $prefs->get('play_playlist_on_power_z1') : $prefs->get('play_playlist_on_power_z2');
+        if ($play_playlist && !$client->isPlaying()) {
+            _playConfiguredPlaylist($client, $zone, 'Source Switched to Lyrion');
+        }
     }
 
     _debugLog(sprintf("[XML PARSE] Zone %s: Power='%s' | Source reported='%s' (configured='%s', match=%d)", 

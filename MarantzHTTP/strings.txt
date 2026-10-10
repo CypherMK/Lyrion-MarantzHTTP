@@ -54,6 +54,22 @@ PLUGIN_MARANTZHTTP_ENTER_MANUALLY
 	ES	Ingresar dirección MAC manualmente...
 	IT	Inserisci indirizzo MAC manualmente...
 
+PLUGIN_MARANTZHTTP_ENTER_DYNAMIC_MANUALLY
+	EN	Enter Dynamic Playlist manually (e.g. topliedjes or ID)...
+	NL	Handmatig Dynamic Playlist invoeren (bijv. topliedjes of ID)...
+	DE	Dynamic Playlist manuell eingeben (z. B. topliedjes oder ID)...
+	FR	Saisir Dynamic Playlist manuellement (ex. topliedjes ou ID)...
+	ES	Ingresar Dynamic Playlist manualmente (ej. topliedjes o ID)...
+	IT	Inserisci Dynamic Playlist manualmente (es. topliedjes o ID)...
+
+PLUGIN_MARANTZHTTP_CUSTOM
+	EN	Custom
+	NL	Aangepast
+	DE	Benutzerdefiniert
+	FR	Personnalisé
+	ES	Personalizado
+	IT	Personalizzato
+
 PLUGIN_MARANTZHTTP_CHOOSE_FROM_LIST
 	EN	Choose from list
 	NL	Kies uit lijst
@@ -423,11 +439,326 @@ PLUGIN_MARANTZHTTP_SET_VOLUME_LABEL
 	IT	Imposta volume all'accensione
 
 PLUGIN_MARANTZHTTP_POWER_VOLUME_LABEL
-	EN	└ Power-on volume
-	NL	└ Inschakelvolume
-	DE	└ Einschaltlautstärke
-	FR	└ Volume à l'allumage
-	ES	└ Volumen al encender
-	IT	└ Volume all'accensione
+	EN	- Power-on volume
+	NL	- Inschakelvolume
+	DE	- Einschaltlautstärke
+	FR	- Volume à l'allumage
+	ES	- Volumen al encender
+	IT	- Volume all'accensione
+
+PLUGIN_MARANTZHTTP_SECTION_PLAYLIST_STARTUP
+	EN	Playlist on Receiver Startup
+	NL	Playlist bij Opstarten Marantz
+	DE	Playlist beim Einschalten des Receivers
+	FR	Playlist au démarrage de l'ampli
+	ES	Lista de reproducción al encender
+	IT	Playlist all'accensione del sintoamplificatore
+
+PLUGIN_MARANTZHTTP_PLAY_PLAYLIST_ON_POWER
+	EN	Play playlist when Marantz turns on
+	NL	Speel een playlist uit de playlist map bij opstarten
+	DE	Playlist aus dem Playlist-Ordner beim Einschalten abspielen
+	FR	Jouer une playlist du dossier playlist à l'allumage
+	ES	Reproducir lista del directorio de listas al encender
+	IT	Riproduci playlist dalla cartella playlist all'accensione
+
+PLUGIN_MARANTZHTTP_PLAYLIST_SELECT
+	EN	Select Playlist
+	NL	Kies Playlist
+	DE	Playlist auswählen
+	FR	Sélectionner la playlist
+	ES	Seleccionar lista
+	IT	Seleziona playlist
+
+PLUGIN_MARANTZHTTP_PLAYLIST_DESC
+	EN	Select a playlist from your LMS playlist folder to play automatically when the receiver turns on.
+	NL	Selecteer een playlist uit de LMS playlist map die automatisch afgespeeld wordt zodra de Marantz inschakelt.
+	DE	Wählen Sie eine Playlist aus Ihrem LMS-Playlist-Ordner, die beim Einschalten automatisch gestartet wird.
+	FR	Sélectionnez une playlist de votre dossier LMS à lancer automatiquement lorsque l'ampli s'allume.
+	ES	Seleccione una lista de reproducción de su carpeta LMS para reproducir automáticamente cuando se encienda.
+	IT	Seleziona una playlist dalla cartella LMS da avviare automaticamente all'accensione del sintoamplificatore.
+
+PLUGIN_MARANTZHTTP_UPDATE_PLAYLISTS
+	EN	Refresh Playlists
+	NL	Playlists vernieuwen
+	DE	Playlists aktualisieren
+	FR	Actualiser les playlists
+	ES	Actualizar listas
+	IT	Aggiorna playlist
+
+PLUGIN_MARANTZHTTP_UPDATING_PLAYLISTS
+	EN	Updating playlists...
+	NL	Playlists worden opgehaald...
+	DE	Playlists werden aktualisiert...
+	FR	Actualisation des playlists...
+	ES	Actualizando listas...
+	IT	Aggiornamento playlist...
+
+PLUGIN_MARANTZHTTP_PLAYLISTS_UPDATED
+	EN	Playlists updated successfully
+	NL	Playlists succesvol bijgewerkt
+	DE	Playlists erfolgreich aktualisiert
+	FR	Playlists mises à jour avec succès
+	ES	Listas actualizadas correctamente
+	IT	Playlist aggiornate con successo
+
+PLUGIN_MARANTZHTTP_SHUFFLE_MODE
+	EN	Shuffle Mode
+	NL	Shuffle afspelen
+	DE	Zufallswiedergabe (Shuffle)
+	FR	Mode aléatoire (Shuffle)
+	ES	Modo aleatorio (Shuffle)
+	IT	Riproduzione casuale (Shuffle)
+
+PLUGIN_MARANTZHTTP_SHUFFLE_OFF
+	EN	Off (Normal Order)
+	NL	Uit (Normale volgorde)
+	DE	Aus (Normale Reihenfolge)
+	FR	Désactivé (Ordre normal)
+	ES	Desactivado (Orden normal)
+	IT	Disattivato (Ordine normale)
+
+PLUGIN_MARANTZHTTP_SHUFFLE_SONGS
+	EN	Shuffle Tracks / Songs
+	NL	Nummers shufflen (Shuffle)
+	DE	Titel zufällig wiedergeben
+	FR	Pistes aléatoires (Chansons)
+	ES	Canciones aleatorias
+	IT	Brani in ordine casuale
+
+PLUGIN_MARANTZHTTP_PLAY_ONLY_IF_EMPTY
+	EN	Only start playlist if queue is empty
+	NL	Speel playlist alleen als de wachtrij leeg is
+	DE	Playlist nur starten, wenn Warteschlange leer ist
+	FR	Lancer la playlist uniquement si la file d'attente est vide
+	ES	Iniciar lista solo si la cola está vacía
+	IT	Avvia playlist solo se la coda è vuota
+
+PLUGIN_MARANTZHTTP_PLAY_ONLY_IF_EMPTY_DESC
+	EN	Only load and play the playlist if the player has no tracks in its queue. Prevents interrupting an already active queue when the receiver turns on.
+	NL	Start de playlist alleen als er momenteel geen nummers in de wachtrij van de speler staan. Voorkomt dat een reeds actieve afspeellijst wordt onderbroken bij het inschakelen van de receiver.
+	DE	Startet die Playlist nur, wenn die Warteschlange aktuell leer ist. Verhindert das Unterbrechen einer aktiven Wiedergabe beim Einschalten des Receivers.
+	FR	Démarre la playlist uniquement si la file d'attente du lecteur est actuellement vide.
+	ES	Inicia la lista solo si la cola del reproductor está actualmente vacía.
+	IT	Avvia la playlist solo se la coda del lettore è attualmente vuota.
+
+PLUGIN_MARANTZHTTP_NO_PLAYLISTS_FOUND
+	EN	-- No playlists found in playlist folder --
+	NL	-- Geen playlists gevonden in playlist map --
+	DE	-- Keine Playlists im Ordner gefunden --
+	FR	-- Aucune playlist trouvée dans le dossier --
+	ES	-- No se encontraron listas en la carpeta --
+	IT	-- Nessuna playlist trovata nella cartella --
+
+PLUGIN_MARANTZHTTP_PLAYLIST_TYPE
+	EN	Playlist Type
+	NL	Type Playlist
+	DE	Playlist-Typ
+	FR	Type de playlist
+	ES	Tipo de lista de reproducción
+	IT	Tipo di playlist
+
+PLUGIN_MARANTZHTTP_PLAYLIST_TYPE_DESC
+	EN	Choose between a standard M3U/LMS playlist file or a dynamic smart playlist managed by the Dynamic Playlists plugin (v4.7.1).
+	NL	Kies tussen een standaard M3U/LMS afspeellijstbestand of een dynamic smart playlist via de Dynamic Playlists plugin (v4.7.1).
+	DE	Wählen Sie zwischen einer Standard-M3U/LMS-Playlist oder einer dynamischen Smart-Playlist über das Dynamic Playlists Plugin (v4.7.1).
+	FR	Choisissez entre une playlist standard M3U/LMS ou une playlist dynamique intelligente via le plugin Dynamic Playlists (v4.7.1).
+	ES	Elija entre una lista de reproducción estándar M3U/LMS o una lista dinámica inteligente mediante el plugin Dynamic Playlists (v4.7.1).
+	IT	Scegli tra una playlist standard M3U/LMS o una playlist dinamica intelligente tramite il plugin Dynamic Playlists (v4.7.1).
+
+PLUGIN_MARANTZHTTP_PLAYLIST_TYPE_STANDARD
+	EN	Standard Playlist (M3U / PLS / LMS Library)
+	NL	Standaard Playlist (M3U / PLS / LMS Bibliotheek)
+	DE	Standard-Playlist (M3U / PLS / LMS-Bibliothek)
+	FR	Playlist standard (M3U / PLS / Bibliothèque LMS)
+	ES	Lista estándar (M3U / PLS / Biblioteca LMS)
+	IT	Playlist standard (M3U / PLS / Libreria LMS)
+
+PLUGIN_MARANTZHTTP_PLAYLIST_TYPE_DYNAMIC
+	EN	Dynamic Playlist
+	NL	Dynamic Playlist
+	DE	Dynamic Playlist
+	FR	Playlist dynamique
+	ES	Lista dinámica
+	IT	Playlist dinamica
+
+PLUGIN_MARANTZHTTP_DYNAMIC_PLAYLIST_SELECT
+	EN	Select Dynamic Playlist
+	NL	Kies Dynamic Playlist
+	DE	Dynamic Playlist auswählen
+	FR	Sélectionner la playlist dynamique
+	ES	Seleccionar lista dinámica
+	IT	Seleziona playlist dinamica
+
+PLUGIN_MARANTZHTTP_DYNAMIC_PLAYLIST_DESC
+	EN	Select a dynamic playlist from the Dynamic Playlists plugin (v4.7.1). Songs will be automatically fed to the queue based on smart criteria.
+	NL	Selecteer een dynamic playlist uit de Dynamic Playlists plugin (v4.7.1). Nummers worden continu en automatisch aan de wachtrij toegevoegd op basis van slimme criteria.
+	DE	Wählen Sie eine Dynamic Playlist aus dem Dynamic Playlists Plugin (v4.7.1). Titel werden kontinuierlich anhand intelligenter Kriterien hinzugefügt.
+	FR	Sélectionnez une playlist dynamique du plugin Dynamic Playlists (v4.7.1). Les morceaux sont ajoutés en continu selon des critères intelligents.
+	ES	Seleccione una lista dinámica del plugin Dynamic Playlists (v4.7.1). Las canciones se añaden continuamente según criterios inteligentes.
+	IT	Seleziona una playlist dinamica dal plugin Dynamic Playlists (v4.7.1). I brani vengono aggiunti continuamente in base a criteri intelligenti.
+
+PLUGIN_MARANTZHTTP_UPDATE_DYNAMIC_PLAYLISTS
+	EN	Refresh Dynamic Playlists
+	NL	Dynamic Playlists vernieuwen
+	DE	Dynamic Playlists aktualisieren
+	FR	Actualiser les playlists dynamiques
+	ES	Actualizar listas dinámicas
+	IT	Aggiorna playlist dinamiche
+
+PLUGIN_MARANTZHTTP_DYNAMIC_PLAYLISTS_UPDATED
+	EN	Dynamic playlists updated
+	NL	Dynamic playlists bijgewerkt
+	DE	Dynamic Playlists aktualisiert
+	FR	Playlists dynamiques mises à jour
+	ES	Listas dinámicas actualizadas
+	IT	Playlist dinamiche aggiornate
+
+PLUGIN_MARANTZHTTP_NO_DYNAMIC_PLAYLISTS_FOUND
+	EN	-- No dynamic playlists found in Dynamic Playlists (v4.7.1) --
+	NL	-- Geen dynamic playlists gevonden in Dynamic Playlists (v4.7.1) --
+	DE	-- Keine Dynamic Playlists in v4.7.1 gefunden --
+	FR	-- Aucune playlist dynamique trouvée dans v4.7.1 --
+	ES	-- No se encontraron listas dinámicas en v4.7.1 --
+	IT	-- Nessuna playlist dinamica trovata in v4.7.1 --
+
+PLUGIN_MARANTZHTTP_DPL_PLUGIN_ACTIVE
+	EN	Dynamic Playlists (v4.7.1) Active
+	NL	Dynamic Playlists (v4.7.1) Actief
+	DE	Dynamic Playlists (v4.7.1) Aktiv
+	FR	Dynamic Playlists (v4.7.1) Actif
+	ES	Dynamic Playlists (v4.7.1) Activo
+	IT	Dynamic Playlists (v4.7.1) Attivo
+
+PLUGIN_MARANTZHTTP_SECTION_SOUND_MODE
+	EN	Sound Mode on Receiver Startup
+	NL	Geluidsmodus bij Opstarten (Sound Mode)
+	DE	Klangmodus beim Einschalten (Sound Mode)
+	FR	Mode sonore au démarrage de l'ampli
+	ES	Modo de sonido al encender
+	IT	Modalità audio all'accensione
+
+PLUGIN_MARANTZHTTP_SET_SOUND_MODE_ON_POWER_Z1
+	EN	Set sound mode upon power-on (Main Zone)
+	NL	Geluidsmodus instellen bij inschakelen (Hoofdzone)
+	DE	Klangmodus beim Einschalten einstellen (Hauptzone)
+	FR	Régler le mode sonore à l'allumage (Zone principale)
+	ES	Ajustar modo de sonido al encender (Zona principal)
+	IT	Imposta modalità audio all'accensione (Zona principale)
+
+PLUGIN_MARANTZHTTP_SET_SOUND_MODE_ON_POWER_Z1_DESC
+	EN	Automatically set receiver to a specific sound mode (Stereo, Direct, Pure Direct, Multi Ch Stereo, etc.) when Main Zone turns on.
+	NL	Schakel de Marantz automatisch naar een specifieke geluidsmodus (Stereo, Direct, Pure Direct, Multi Ch Stereo, etc.) bij het inschakelen van de Hoofdzone.
+	DE	Schaltet den Receiver beim Einschalten der Hauptzone automatisch in einen bestimmten Klangmodus (Stereo, Direct, Pure Direct, Multi Ch Stereo usw.).
+	FR	Règle automatiquement l'ampli sur un mode sonore spécifique (Stereo, Direct, Pure Direct, Multi Ch Stereo, etc.) lors de l'allumage.
+	ES	Ajusta automáticamente el receptor a un modo de sonido específico (Stereo, Direct, Pure Direct, Multi Ch Stereo, etc.) al encender.
+	IT	Imposta automaticamente il sintoamplificatore su una modalità audio specifica (Stereo, Direct, Pure Direct, Multi Ch Stereo, ecc.) all'accensione.
+
+PLUGIN_MARANTZHTTP_SOUND_MODE_Z1
+	EN	Sound Mode (Main Zone)
+	NL	Geluidsmodus (Hoofdzone)
+	DE	Klangmodus (Hauptzone)
+	FR	Mode sonore (Zone principale)
+	ES	Modo de sonido (Zona principal)
+	IT	Modalità audio (Zona principale)
+
+PLUGIN_MARANTZHTTP_SOUND_MODE_Z1_DESC
+	EN	Choose the desired audio listening mode for music playback (Stereo, Pure Direct, Multi Ch Stereo, etc.). Click 'Detect' to read active settings from your receiver.
+	NL	Kies de gewenste audiomodus voor muziekweergave (Stereo, Pure Direct, Multi Ch Stereo, etc.). Klik op 'Detecteer' om de mogelijkheden van uw receiver uit te lezen.
+	DE	Wählen Sie den gewünschten Klangmodus für die Musikwiedergabe (Stereo, Pure Direct, Multi Ch Stereo usw.). Klicken Sie auf 'Erkennen', um Ihren Receiver abzufragen.
+	FR	Choisissez le mode audio souhaité pour l'écoute musicale (Stereo, Pure Direct, Multi Ch Stereo, etc.). Cliquez sur 'Détecter' pour interroger l'ampli.
+	ES	Elija el modo de audio deseado para la música (Stereo, Pure Direct, Multi Ch Stereo, etc.). Haga clic en 'Detectar' para consultar el receptor.
+	IT	Scegli la modalità audio desiderata per la riproduzione musicale (Stereo, Pure Direct, Multi Ch Stereo, ecc.). Fai clic su 'Rileva' per interrogare il sintoamplificatore.
+
+PLUGIN_MARANTZHTTP_DETECT_RECEIVER
+	EN	Detect Receiver
+	NL	Detecteer Receiver
+	DE	Receiver erkennen
+	FR	Détecter l'ampli
+	ES	Detectar receptor
+	IT	Rileva sintoamplificatore
+
+PLUGIN_MARANTZHTTP_DETECTING_RECEIVER
+	EN	Detecting receiver...
+	NL	Receiver wordt gedetecteerd...
+	DE	Receiver wird erkannt...
+	FR	Détection de l'ampli...
+	ES	Detectando receptor...
+	IT	Rilevamento sintoamplificatore...
+
+PLUGIN_MARANTZHTTP_RECEIVER_NOT_REACHABLE
+	EN	Receiver not reachable at configured IP
+	NL	Receiver niet bereikbaar op geconfigureerd IP-adres
+	DE	Receiver unter konfigurierter IP nicht erreichbar
+	FR	Ampli injoignable à l'adresse IP configurée
+	ES	Receptor no alcanzable en la IP configurada
+	IT	Sintoamplificatore non raggiungibile all'IP configurato
+
+PLUGIN_MARANTZHTTP_SOUND_MODE_KEEP_CURRENT
+	EN	Do not change (Keep receiver current mode)
+	NL	Niet wijzigen (Huidige geluidsmodus behouden)
+	DE	Nicht ändern (Aktuellen Modus beibehalten)
+	FR	Ne pas modifier (Conserver le mode actuel)
+	ES	No cambiar (Mantener modo actual)
+	IT	Non modificare (Mantieni modalità attuale)
+
+PLUGIN_MARANTZHTTP_SECTION_ROOM_PRESET
+	EN	Dirac & Audyssey Preset on Startup
+	NL	Dirac & Audyssey Kalibratie Preset bij Opstarten
+	DE	Dirac & Audyssey Voreinstellung beim Einschalten
+	FR	Préréglage Dirac & Audyssey au démarrage
+	ES	Ajuste preestablecido Dirac y Audyssey al encender
+	IT	Predefinito Dirac e Audyssey all'accensione
+
+PLUGIN_MARANTZHTTP_SET_ROOM_PRESET_ON_POWER_Z1
+	EN	Set Dirac / Audyssey preset upon power-on (Main Zone)
+	NL	Dirac of Audyssey preset instellen bij inschakelen (Hoofdzone)
+	DE	Dirac / Audyssey Voreinstellung beim Einschalten aktivieren (Hauptzone)
+	FR	Régler le préréglage Dirac / Audyssey à l'allumage (Zone principale)
+	ES	Ajustar preajuste Dirac / Audyssey al encender (Zona principal)
+	IT	Imposta predefinito Dirac / Audyssey all'accensione (Zona principale)
+
+PLUGIN_MARANTZHTTP_SET_ROOM_PRESET_ON_POWER_Z1_DESC
+	EN	Automatically enforce a specific Dirac Live slot (Slot 1, Slot 2, Slot 3), Speaker Preset (Preset 1 / Preset 2), or Audyssey MultEQ curve when Main Zone turns on.
+	NL	Schakel de Marantz automatisch naar een specifieke Dirac Live slot (Slot 1, 2, 3), Speaker Preset (Preset 1 / 2) of Audyssey MultEQ curve bij het inschakelen van de Hoofdzone.
+	DE	Schaltet den Receiver beim Einschalten der Hauptzone automatisch in einen bestimmten Dirac Live Slot (Slot 1, 2, 3), Speaker Preset (Preset 1 / 2) oder eine Audyssey MultEQ Kurve.
+	FR	Règle automatiquement l'ampli sur un emplacement Dirac Live (Slot 1, 2, 3), un préréglage d'enceintes (Preset 1 / 2) ou une courbe Audyssey MultEQ lors de l'allumage.
+	ES	Ajusta automáticamente el receptor a una ranura Dirac Live (Slot 1, 2, 3), ajuste de altavoces (Preset 1 / 2) o curva Audyssey MultEQ al encender.
+	IT	Imposta automaticamente il sintoamplificatore su uno slot Dirac Live (Slot 1, 2, 3), un predefinito altoparlanti (Preset 1 / 2) o una curva Audyssey MultEQ all'accensione.
+
+PLUGIN_MARANTZHTTP_ROOM_PRESET_Z1
+	EN	Dirac / Audyssey Preset (Main Zone)
+	NL	Dirac / Audyssey Preset (Hoofdzone)
+	DE	Dirac / Audyssey Voreinstellung (Hauptzone)
+	FR	Préréglage Dirac / Audyssey (Zone principale)
+	ES	Preajuste Dirac / Audyssey (Zona principal)
+	IT	Predefinito Dirac / Audyssey (Zona principale)
+
+PLUGIN_MARANTZHTTP_ROOM_PRESET_Z1_DESC
+	EN	Select the desired room calibration preset (Speaker Preset 1, Speaker Preset 2, Dirac Slot 1-3, Audyssey Reference, Flat, etc.) for music listening.
+	NL	Selecteer de gewenste kamerkalibratie preset (Speaker Preset 1, Speaker Preset 2, Dirac Slot 1-3, Audyssey Reference, Flat, etc.) voor muziekweergave.
+	DE	Wählen Sie die gewünschte Raumkalibrierungs-Voreinstellung (Speaker Preset 1, Speaker Preset 2, Dirac Slot 1-3, Audyssey Reference, Flat usw.).
+	FR	Sélectionnez le préréglage de calibration acoustique souhaité (Speaker Preset 1, Speaker Preset 2, Dirac Slot 1-3, Audyssey Reference, Flat, etc.).
+	ES	Seleccione el ajuste de calibración de sala deseado (Speaker Preset 1, Speaker Preset 2, Dirac Slot 1-3, Audyssey Reference, Flat, etc.).
+	IT	Seleziona il predefinito di calibrazione ambientale desiderato (Speaker Preset 1, Speaker Preset 2, Dirac Slot 1-3, Audyssey Reference, Flat, ecc.).
+
+PLUGIN_MARANTZHTTP_ROOM_PRESET_KEEP_CURRENT
+	EN	Do not change (Keep receiver current preset)
+	NL	Niet wijzigen (Huidige preset behouden)
+	DE	Nicht ändern (Aktuelle Voreinstellung beibehalten)
+	FR	Ne pas modifier (Conserver le préréglage actuel)
+	ES	No cambiar (Mantener ajuste actual)
+	IT	Non modificare (Mantieni predefinito attuale)
+
+PLUGIN_MARANTZHTTP_ENTER_ROOM_PRESET_MANUALLY
+	EN	Enter custom command manually (e.g. SPPR 1 or PSDIRAC 1)...
+	NL	Handmatig aangepast commando invoeren (bijv. SPPR 1 of PSDIRAC 1)...
+	DE	Benutzerdefiniertes Befehl manuell eingeben (z. B. SPPR 1 oder PSDIRAC 1)...
+	FR	Saisir une commande personnalisée manuellement (ex. SPPR 1 ou PSDIRAC 1)...
+	ES	Ingresar comando personalizado manualmente (ej. SPPR 1 o PSDIRAC 1)...
+	IT	Inserisci comando personalizzato manualmente (es. SPPR 1 o PSDIRAC 1)...
+
+
+
 
 

@@ -2,8 +2,8 @@
 <extension>
   <name>MarantzHTTP</name>
   <module>Plugins::MarantzHTTP::Plugin</module>
-  <version>1.8.3</version>
-  <description>Control Marantz and Denon receiver volume via HTTP with bidirectional sync, automatic power-on on playlist start, input selection, non-blocking asynchronous requests, and fail-safe auto-pause/auto-resume.</description>
+  <version>1.9.0</version>
+  <description>Control Marantz and Denon receiver volume via HTTP with bidirectional sync, sound mode selection (Stereo, Direct, Multi Ch Stereo, etc.), Dirac Live and Audyssey room calibration preset selection (Speaker Preset 1/2, Dirac Slots 1-3, MultEQ) on startup, receiver capability detection, automatic power-on on playlist start, auto playlist playback on receiver power-on with standard and Dynamic Playlists (v4.7.1) support, track shuffle, empty queue guard, input selection, non-blocking asynchronous requests, and fail-safe auto-pause/auto-resume.</description>
   <creator>CypherMK</creator>
   <email>none@none.com</email>
   <defaultState>enabled</defaultState>
