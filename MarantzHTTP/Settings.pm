@@ -26,12 +26,17 @@ sub page {
 
 sub prefs { 
     return ($prefs, qw(
-        ip port 
+        ip port sync_volume poll_interval
         mac_z1 power_on_z1 source_z1 set_sound_mode_on_power_z1 sound_mode_z1 set_room_preset_on_power_z1 room_preset_z1 set_volume_on_power_z1 power_volume_z1 pause_on_off_or_source_z1 resume_on_source_z1 
         play_playlist_on_power_z1 playlist_type_z1 playlist_z1 dynamic_playlist_z1 shuffle_z1 play_only_if_empty_z1
         mac_z2 power_on_z2 source_z2 set_volume_on_power_z2 power_volume_z2 pause_on_off_or_source_z2 resume_on_source_z2 
         play_playlist_on_power_z2 playlist_type_z2 playlist_z2 dynamic_playlist_z2 shuffle_z2 play_only_if_empty_z2
-        sync_volume poll_interval
+
+        r2_enabled r2_ip r2_port r2_sync_volume r2_poll_interval
+        r2_mac_z1 r2_power_on_z1 r2_source_z1 r2_set_sound_mode_on_power_z1 r2_sound_mode_z1 r2_set_room_preset_on_power_z1 r2_room_preset_z1 r2_set_volume_on_power_z1 r2_power_volume_z1 r2_pause_on_off_or_source_z1 r2_resume_on_source_z1
+        r2_play_playlist_on_power_z1 r2_playlist_type_z1 r2_playlist_z1 r2_dynamic_playlist_z1 r2_shuffle_z1 r2_play_only_if_empty_z1
+        r2_mac_z2 r2_power_on_z2 r2_source_z2 r2_set_volume_on_power_z2 r2_power_volume_z2 r2_pause_on_off_or_source_z2 r2_resume_on_source_z2
+        r2_play_playlist_on_power_z2 r2_playlist_type_z2 r2_playlist_z2 r2_dynamic_playlist_z2 r2_shuffle_z2 r2_play_only_if_empty_z2
     )); 
 }
 
@@ -47,6 +52,7 @@ sub getDefaultSourcesZ1 {
         { value => 'SIDVD',           name => 'DVD' },
         { value => 'SITV',            name => 'TV Audio' },
         { value => 'SIHEOS',          name => 'HEOS / Network' },
+        { value => 'SISERVER',        name => 'Media Server' },
         { value => 'SINET',           name => 'Internet Radio' },
         { value => 'SIBT',            name => 'Bluetooth' },
         { value => 'SIGAME',          name => 'Game' },
@@ -91,6 +97,7 @@ sub getDefaultRoomPresetsZ1 {
 sub getDefaultSourcesZ2 {
     return [
         { value => 'Z2NET',           name => 'HEOS / Network' },
+        { value => 'Z2SERVER',        name => 'Media Server' },
         { value => 'Z2SAT/CBL',       name => 'CBL/SAT' },
         { value => 'Z2MEDIA_PLAYER',  name => 'Media Player' },
         { value => 'Z2CD',            name => 'CD' },
@@ -214,12 +221,10 @@ sub getAvailableDynamicPlaylists {
     my %dynamic_playlists;
 
     # 1. Exhaustive disk scan for user's custom Dynamic Playlist Creator (DPLC) & SQLPlayList files
-    # DPLC stores .sql and .xml files in 'DynamicPlaylistCreator' directory in prefs or playlistdir
     eval {
         require File::Spec;
         my @candidate_dirs;
 
-        # Preferences directory candidates
         my @prefs_dirs;
         eval {
             if (Slim::Utils::OSDetect->can('dirsFor')) {
@@ -240,7 +245,6 @@ sub getAvailableDynamicPlaylists {
             push @candidate_dirs, File::Spec->catdir($pd, 'plugin', 'sqlplaylist');
         }
 
-        # DPLC & DynamicPlaylist plugin explicit preferences
         eval {
             my $dplc_custom = Slim::Utils::Prefs::preferences('plugin.dynamicplaylistcreator')->get('customdir');
             push @candidate_dirs, $dplc_custom if $dplc_custom && -d $dplc_custom;
@@ -255,7 +259,6 @@ sub getAvailableDynamicPlaylists {
             push @candidate_dirs, $sql_custom if $sql_custom && -d $sql_custom;
         };
 
-        # Playlist directory candidates
         eval {
             my $playlistdir = Slim::Utils::Prefs::preferences('server')->get('playlistdir');
             if ($playlistdir && -d $playlistdir) {
@@ -270,7 +273,6 @@ sub getAvailableDynamicPlaylists {
             }
         };
 
-        # Dedup candidate directories and scan
         my %seen_dirs;
         for my $dir (@candidate_dirs) {
             next unless $dir && -d $dir && !$seen_dirs{$dir}++;
@@ -284,7 +286,6 @@ sub getAvailableDynamicPlaylists {
                         my $base = $file;
                         $base =~ s/\.[^.]+$//;
 
-                        # Try to resolve friendly title from matching XML or SQL header
                         my $clean_title = '';
                         my $xml_path = File::Spec->catfile($dir, "$base.xml");
                         my $customval_path = File::Spec->catfile($dir, "$base.customvalues.xml");
@@ -300,7 +301,6 @@ sub getAvailableDynamicPlaylists {
                             }
                         }
 
-                        # If no title from XML, check SQL comments
                         if (!$clean_title) {
                             my $sql_path = File::Spec->catfile($dir, $file);
                             if (open(my $sfh, '<', $sql_path)) {
@@ -323,13 +323,11 @@ sub getAvailableDynamicPlaylists {
                             $clean_title =~ s/\b(\w)/\U$1/g;
                         }
 
-                        # Determine primary ID used by Dynamic Playlists plugin
                         my $lc_base = lc($base);
                         my $is_sqlplaylist = ($dir =~ /sqlplaylist/i);
                         my $prefix = $is_sqlplaylist ? 'sqlplaylist_' : 'dplccustom_';
                         my $full_id = $prefix . $lc_base;
 
-                        # Store strictly under canonical ID (do NOT double-store under $lc_base)
                         my $canonical_key = _cleanDynamicId($full_id) || lc($full_id);
                         $dynamic_playlists{$canonical_key} = {
                             id       => $full_id,
@@ -344,13 +342,13 @@ sub getAvailableDynamicPlaylists {
         }
     };
 
-    # 2. Query Dynamic Playlists (v4.7.1) via LMS Slim::Control::Request with player context
+    # 2. Query Dynamic Playlists (v4.7.1) via LMS Slim::Control::Request
     eval {
         require Slim::Control::Request;
         my $client;
         eval {
             $client = Slim::Player::Client::getClient($prefs->get('mac_z1'))
-                   || Slim::Player::Client::getClient($prefs->get('mac_z2'))
+                   || Slim::Player::Client::getClient($prefs->get('r2_mac_z1'))
                    || Slim::Player::Client::getFirst();
         };
 
@@ -439,9 +437,8 @@ sub getAvailableDynamicPlaylists {
         }
     };
 
-    # 4. Include currently configured manual playlist preference so it is NEVER lost,
-    # but ONLY if not already matching an existing scanned playlist!
-    for my $z_pref ('dynamic_playlist_z1', 'dynamic_playlist_z2') {
+    # 4. Include currently configured manual playlist preferences so they are NEVER lost
+    for my $z_pref ('dynamic_playlist_z1', 'dynamic_playlist_z2', 'r2_dynamic_playlist_z1', 'r2_dynamic_playlist_z2') {
         my $saved = $prefs->get($z_pref);
         if ($saved && $saved ne '' && $saved ne '__CUSTOM__') {
             my $already_present = 0;
@@ -466,7 +463,7 @@ sub getAvailableDynamicPlaylists {
         }
     }
 
-    # 5. Fallback presets ONLY if NO custom or scanned dynamic playlists were found anywhere
+    # 5. Fallback presets if NO custom or scanned dynamic playlists were found anywhere
     if (scalar(keys %dynamic_playlists) == 0) {
         my @fallback_presets = (
             { id => 'dplccustom_topliedjes', title => 'Topliedjes (dplccustom_topliedjes)' },
@@ -480,7 +477,7 @@ sub getAvailableDynamicPlaylists {
         }
     }
 
-    # 6. Comprehensive deduplication pass: Guarantee ZERO duplicate entries
+    # 6. Deduplicate entries
     my %seen_id;
     my %seen_title;
     my @deduped;
@@ -508,7 +505,6 @@ sub getAvailableDynamicPlaylists {
 sub getPlaylistsAjax {
     my ($classOrClient, $params, $callback, $httpClient, $response) = @_;
 
-    # Force immediate re-scan when button is clicked
     my $playlists = getAvailablePlaylists(1);
     my $dynamic_playlists = getAvailableDynamicPlaylists(1);
 
@@ -536,7 +532,6 @@ sub getPlaylistsAjax {
         });
     } || '{"success":1,"playlists":[],"dynamic_playlists":[]}';
 
-    # Resolve response object
     if (!defined $response && defined $httpClient && eval { $httpClient->can('content_type') }) {
         $response = $httpClient;
     }
@@ -554,12 +549,16 @@ sub getPlaylistsAjax {
     return \$json_text;
 }
 
-# AJAX endpoint to detect Marantz receiver model and current sound mode capabilities
+# AJAX endpoint to detect receiver capabilities (supports rec=1 or rec=2, or custom IP/port)
 sub detectReceiverAjax {
     my ($classOrClient, $params, $callback, $httpClient, $response) = @_;
 
-    my $ip = (defined $params && $params->{ip}) ? $params->{ip} : $prefs->get('ip');
-    my $port = (defined $params && $params->{port}) ? $params->{port} : ($prefs->get('port') || '8080');
+    my $rec_idx = (defined $params && $params->{rec}) ? int($params->{rec}) : 1;
+    my $default_ip = ($rec_idx == 2) ? $prefs->get('r2_ip') : $prefs->get('ip');
+    my $default_port = ($rec_idx == 2) ? ($prefs->get('r2_port') || '8080') : ($prefs->get('port') || '8080');
+
+    my $ip = (defined $params && $params->{ip}) ? $params->{ip} : $default_ip;
+    my $port = (defined $params && $params->{port}) ? $params->{port} : $default_port;
 
     $ip =~ s/^\s+|\s+$//g if defined $ip;
     $ip =~ s{^https?://}{}i if defined $ip;
@@ -601,7 +600,8 @@ sub detectReceiverAjax {
     unless ($ip) {
         return $send_json->({
             success     => 0,
-            error       => 'Geen IP-adres geconfigureerd in instellingen',
+            receiver    => $rec_idx,
+            error       => "Geen IP-adres geconfigureerd voor Receiver $rec_idx in instellingen",
             sound_modes => $sound_modes,
         });
     }
@@ -626,7 +626,7 @@ sub detectReceiverAjax {
                     $surround =~ s/^\s+|\s+$//g;
                 }
 
-                my $model = 'Marantz / Denon AVR';
+                my $model = "Marantz / Denon AVR ($rec_idx)";
                 if ($content =~ /<ModelName>(?:<value>)?([^<]+)/i || $content =~ /<DeviceModel>(?:<value>)?([^<]+)/i) {
                     $model = $1;
                     $model =~ s/^\s+|\s+$//g;
@@ -655,6 +655,7 @@ sub detectReceiverAjax {
 
                 $send_json->({
                     success            => 1,
+                    receiver           => $rec_idx,
                     ip                 => $ip,
                     port               => $port,
                     model              => $model,
@@ -668,7 +669,8 @@ sub detectReceiverAjax {
                 my ($http, $err) = @_;
                 $send_json->({
                     success     => 0,
-                    error       => $err || 'Verbinding time-out of receiver onbereikbaar',
+                    receiver    => $rec_idx,
+                    error       => $err || "Verbinding time-out of Receiver $rec_idx onbereikbaar op $ip:$port",
                     ip          => $ip,
                     port        => $port,
                     sound_modes => $sound_modes,
@@ -682,6 +684,7 @@ sub detectReceiverAjax {
     if ($@) {
         return $send_json->({
             success     => 0,
+            receiver    => $rec_idx,
             error       => "HTTP fout: $@",
             sound_modes => $sound_modes,
         });
@@ -697,16 +700,28 @@ sub beforeRender {
     $params->{sound_modes_z1} = [ @{ getDefaultSoundModesZ1() } ];
     $params->{room_presets_z1} = [ @{ getDefaultRoomPresetsZ1() } ];
 
-    # Ensure currently configured sound mode is retained in dropdown even if custom
-    my $current_sm_z1 = $prefs->get('sound_mode_z1');
-    if ($current_sm_z1 && !grep { $_->{value} eq $current_sm_z1 } @{$params->{sound_modes_z1}}) {
-        unshift @{$params->{sound_modes_z1}}, { value => $current_sm_z1, name => "$current_sm_z1 (Aangepast)", desc => 'Aangepaste geluidsmodus' };
+    # Receiver 2 mirrors sources, sound modes and room presets
+    $params->{sources_r2_z1} = [ @{ getDefaultSourcesZ1() } ];
+    $params->{sources_r2_z2} = [ @{ getDefaultSourcesZ2() } ];
+    $params->{sound_modes_r2_z1} = [ @{ getDefaultSoundModesZ1() } ];
+    $params->{room_presets_r2_z1} = [ @{ getDefaultRoomPresetsZ1() } ];
+
+    # Ensure currently configured custom sound modes are retained
+    for my $sm_key ('sound_mode_z1', 'r2_sound_mode_z1') {
+        my $target_list = ($sm_key eq 'sound_mode_z1') ? $params->{sound_modes_z1} : $params->{sound_modes_r2_z1};
+        my $val = $prefs->get($sm_key);
+        if ($val && !grep { $_->{value} eq $val } @$target_list) {
+            unshift @$target_list, { value => $val, name => "$val (Aangepast)", desc => 'Aangepaste geluidsmodus' };
+        }
     }
 
-    # Ensure currently configured room preset is retained in dropdown even if custom
-    my $current_rp_z1 = $prefs->get('room_preset_z1');
-    if ($current_rp_z1 && !grep { $_->{value} eq $current_rp_z1 } @{$params->{room_presets_z1}}) {
-        unshift @{$params->{room_presets_z1}}, { value => $current_rp_z1, name => "$current_rp_z1 (Aangepast)", desc => 'Aangepaste kalibratie preset' };
+    # Ensure currently configured custom room presets are retained
+    for my $rp_key ('room_preset_z1', 'r2_room_preset_z1') {
+        my $target_list = ($rp_key eq 'room_preset_z1') ? $params->{room_presets_z1} : $params->{room_presets_r2_z1};
+        my $val = $prefs->get($rp_key);
+        if ($val && !grep { $_->{value} eq $val } @$target_list) {
+            unshift @$target_list, { value => $val, name => "$val (Aangepast)", desc => 'Aangepaste kalibratie preset' };
+        }
     }
 
     # Standard Playlists discovery
@@ -724,53 +739,28 @@ sub beforeRender {
     };
     $params->{dpl_plugin_installed} = $has_dpl_plugin;
 
-    # Ensure currently configured dynamic playlists are retained even if temporarily offline
-    my $cur_dpl_z1 = $prefs->get('dynamic_playlist_z1');
-    if ($cur_dpl_z1 && $cur_dpl_z1 ne '' && $cur_dpl_z1 ne '__CUSTOM__') {
-        unless (grep { _matchesDynamicId($_->{id}, $cur_dpl_z1) } @{$params->{available_dynamic_playlists}}) {
-            my $disp = $cur_dpl_z1;
-            $disp =~ s/\.(sql|dpl|xml)$//i;
-            $disp =~ s/^(dplccustom_|dplcustom_|dplusercustom_|sqlplaylist_|dynamicplaylist_|custom_|dplc_|dpl_|sql_)//i;
-            $disp = ucfirst($disp);
-            unshift @{$params->{available_dynamic_playlists}}, { id => $cur_dpl_z1, title => "$disp ($cur_dpl_z1)" };
+    # Ensure currently configured dynamic playlists are retained across all 4 zones
+    for my $dpl_pref ('dynamic_playlist_z1', 'dynamic_playlist_z2', 'r2_dynamic_playlist_z1', 'r2_dynamic_playlist_z2') {
+        my $cur_dpl = $prefs->get($dpl_pref);
+        if ($cur_dpl && $cur_dpl ne '' && $cur_dpl ne '__CUSTOM__') {
+            unless (grep { _matchesDynamicId($_->{id}, $cur_dpl) } @{$params->{available_dynamic_playlists}}) {
+                my $disp = $cur_dpl;
+                $disp =~ s/\.(sql|dpl|xml)$//i;
+                $disp =~ s/^(dplccustom_|dplcustom_|dplusercustom_|sqlplaylist_|dynamicplaylist_|custom_|dplc_|dpl_|sql_)//i;
+                $disp = ucfirst($disp);
+                unshift @{$params->{available_dynamic_playlists}}, { id => $cur_dpl, title => "$disp ($cur_dpl)" };
+            }
         }
     }
 
-    my $cur_dpl_z2 = $prefs->get('dynamic_playlist_z2');
-    if ($cur_dpl_z2 && $cur_dpl_z2 ne '' && $cur_dpl_z2 ne '__CUSTOM__') {
-        unless (grep { _matchesDynamicId($_->{id}, $cur_dpl_z2) } @{$params->{available_dynamic_playlists}}) {
-            my $disp = $cur_dpl_z2;
-            $disp =~ s/\.(sql|dpl|xml)$//i;
-            $disp =~ s/^(dplccustom_|dplcustom_|dplusercustom_|sqlplaylist_|dynamicplaylist_|custom_|dplc_|dpl_|sql_)//i;
-            $disp = ucfirst($disp);
-            unshift @{$params->{available_dynamic_playlists}}, { id => $cur_dpl_z2, title => "$disp ($cur_dpl_z2)" };
+    # Ensure currently configured standard playlists are retained across all 4 zones
+    for my $pl_pref ('playlist_z1', 'playlist_z2', 'r2_playlist_z1', 'r2_playlist_z2') {
+        my $cur_pl = $prefs->get($pl_pref);
+        if ($cur_pl && !grep { $_->{id} eq $cur_pl } @{$params->{available_playlists}}) {
+            my $display = $cur_pl;
+            $display =~ s{^.*/}{};
+            unshift @{$params->{available_playlists}}, { id => $cur_pl, title => "$display (Opgeslagen)", url => $cur_pl };
         }
-    }
-
-    # Ensure currently configured playlists are retained even if temporarily offline
-    my $cur_pl_z1 = $prefs->get('playlist_z1');
-    if ($cur_pl_z1 && !grep { $_->{id} eq $cur_pl_z1 } @{$params->{available_playlists}}) {
-        my $display_z1 = $cur_pl_z1;
-        $display_z1 =~ s{^.*/}{};
-        unshift @{$params->{available_playlists}}, { id => $cur_pl_z1, title => "$display_z1 (Opgeslagen)", url => $cur_pl_z1 };
-    }
-
-    my $cur_pl_z2 = $prefs->get('playlist_z2');
-    if ($cur_pl_z2 && !grep { $_->{id} eq $cur_pl_z2 } @{$params->{available_playlists}}) {
-        my $display_z2 = $cur_pl_z2;
-        $display_z2 =~ s{^.*/}{};
-        unshift @{$params->{available_playlists}}, { id => $cur_pl_z2, title => "$display_z2 (Opgeslagen)", url => $cur_pl_z2 };
-    }
-
-    # Ensure currently configured source is retained in dropdown even if custom
-    my $current_z1 = $prefs->get('source_z1');
-    if ($current_z1 && !grep { $_->{value} eq $current_z1 } @{$params->{sources_z1}}) {
-        unshift @{$params->{sources_z1}}, { value => $current_z1, name => $current_z1 };
-    }
-
-    my $current_z2 = $prefs->get('source_z2');
-    if ($current_z2 && !grep { $_->{value} eq $current_z2 } @{$params->{sources_z2}}) {
-        unshift @{$params->{sources_z2}}, { value => $current_z2, name => $current_z2 };
     }
 
     # Discover and list currently connected LMS players for 1-click selection
@@ -794,7 +784,7 @@ sub beforeRender {
     }
 
     # If a previously configured MAC is currently offline/turned off, preserve it in the dropdown
-    for my $k ('mac_z1', 'mac_z2') {
+    for my $k ('mac_z1', 'mac_z2', 'r2_mac_z1', 'r2_mac_z2') {
         my $saved = $prefs->get($k);
         if ($saved) {
             my $clean = lc($saved);
@@ -810,17 +800,24 @@ sub beforeRender {
         }
     }
 
-    # Precalculate selection matching in Perl for 100% reliable matching regardless of case/format
+    # Precalculate selection matching for all 4 zones (R1 Z1, R1 Z2, R2 Z1, R2 Z2)
     my $cur_mac_z1 = lc($prefs->get('mac_z1') || '');
     $cur_mac_z1 =~ s/[^a-f0-9]//g;
     my $cur_mac_z2 = lc($prefs->get('mac_z2') || '');
     $cur_mac_z2 =~ s/[^a-f0-9]//g;
 
+    my $cur_r2_mac_z1 = lc($prefs->get('r2_mac_z1') || '');
+    $cur_r2_mac_z1 =~ s/[^a-f0-9]//g;
+    my $cur_r2_mac_z2 = lc($prefs->get('r2_mac_z2') || '');
+    $cur_r2_mac_z2 =~ s/[^a-f0-9]//g;
+
     for my $p (@players) {
         my $clean = lc($p->{id});
         $clean =~ s/[^a-f0-9]//g;
-        $p->{selected_z1} = ($cur_mac_z1 && $clean eq $cur_mac_z1) ? 1 : 0;
-        $p->{selected_z2} = ($cur_mac_z2 && $clean eq $cur_mac_z2) ? 1 : 0;
+        $p->{selected_z1}    = ($cur_mac_z1 && $clean eq $cur_mac_z1) ? 1 : 0;
+        $p->{selected_z2}    = ($cur_mac_z2 && $clean eq $cur_mac_z2) ? 1 : 0;
+        $p->{selected_r2_z1} = ($cur_r2_mac_z1 && $clean eq $cur_r2_mac_z1) ? 1 : 0;
+        $p->{selected_r2_z2} = ($cur_r2_mac_z2 && $clean eq $cur_r2_mac_z2) ? 1 : 0;
     }
 
     $params->{available_players} = \@players;
@@ -831,25 +828,34 @@ sub handler {
     my ($class, $client, $params, $callback, @args) = @_;
 
     if ($params->{'saveSettings'}) {
-        # Sanitize IP address (strip whitespace, protocol prefixes, trailing slashes)
+        # Sanitize Receiver 1 IP & Port
         if (defined $params->{'pref_ip'}) {
             $params->{'pref_ip'} =~ s/^\s+|\s+$//g;
             $params->{'pref_ip'} =~ s{^https?://}{}i;
             $params->{'pref_ip'} =~ s{/.*$}{};
         }
-
-        # Sanitize Port
         if (defined $params->{'pref_port'}) {
             $params->{'pref_port'} =~ s/^\s+|\s+$//g;
             $params->{'pref_port'} =~ s/[^0-9]//g;
             $params->{'pref_port'} = '8080' if $params->{'pref_port'} eq '';
         }
 
-        # Sanitize MAC addresses
-        for my $mac_key ('pref_mac_z1', 'pref_mac_z2') {
+        # Sanitize Receiver 2 IP & Port
+        if (defined $params->{'pref_r2_ip'}) {
+            $params->{'pref_r2_ip'} =~ s/^\s+|\s+$//g;
+            $params->{'pref_r2_ip'} =~ s{^https?://}{}i;
+            $params->{'pref_r2_ip'} =~ s{/.*$}{};
+        }
+        if (defined $params->{'pref_r2_port'}) {
+            $params->{'pref_r2_port'} =~ s/^\s+|\s+$//g;
+            $params->{'pref_r2_port'} =~ s/[^0-9]//g;
+            $params->{'pref_r2_port'} = '8080' if $params->{'pref_r2_port'} eq '';
+        }
+
+        # Sanitize MAC addresses for all 4 zones
+        for my $mac_key ('pref_mac_z1', 'pref_mac_z2', 'pref_r2_mac_z1', 'pref_r2_mac_z2') {
             if (defined $params->{$mac_key}) {
                 $params->{$mac_key} =~ s/^\s+|\s+$//g;
-                # Discard special placeholder values
                 if ($params->{$mac_key} eq '__MANUAL__') {
                     $params->{$mac_key} = '';
                 }

@@ -6,6 +6,65 @@
     font-size: 12px;
     color: #111827;
 }
+
+/* Tab Bar */
+.marantz-tab-nav {
+    display: flex !important;
+    gap: 8px !important;
+    margin-bottom: 16px !important;
+    border-bottom: 2px solid #cbd5e1 !important;
+    padding-bottom: 0 !important;
+}
+.marantz-tab-btn {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    background: #f1f5f9 !important;
+    border: 1px solid #cbd5e1 !important;
+    border-bottom: none !important;
+    border-radius: 8px 8px 0 0 !important;
+    padding: 8px 18px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #475569 !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin-bottom: -2px !important;
+    transition: all 0.15s ease !important;
+}
+.marantz-tab-btn:hover {
+    background: #e2e8f0 !important;
+    color: #1e293b !important;
+}
+.marantz-tab-btn.active {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border-color: #cbd5e1 !important;
+    border-bottom: 2px solid #ffffff !important;
+    box-shadow: 0 -2px 5px rgba(0,0,0,0.04) !important;
+}
+.marantz-tab-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 20px !important;
+    height: 20px !important;
+    border-radius: 50% !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    background: #e2e8f0 !important;
+    color: #334155 !important;
+}
+.marantz-tab-btn.active .marantz-tab-badge {
+    background: #0284c7 !important;
+    color: #ffffff !important;
+}
+
+.marantz-tab-panel {
+    display: block;
+}
+
 .marantz-group {
     border: 1px solid #7a848e !important;
     border-radius: 10px !important;
@@ -102,47 +161,113 @@
 
 <div class="marantz-settings">
     <script type="text/javascript">
-    function checkManualMac(zone, val) {
-        if (val === '__MANUAL__') {
-            document.getElementById('mac_' + zone + '_select_wrap').style.display = 'none';
-            document.getElementById('mac_' + zone + '_manual_wrap').style.display = 'inline-flex';
-            document.getElementById('mac_' + zone + '_input').name = 'pref_mac_' + zone;
-            document.getElementById('mac_' + zone + '_select').name = '';
-            document.getElementById('mac_' + zone + '_input').focus();
+    function switchMarantzTab(tabName) {
+        var btnR1 = document.getElementById('tab_btn_r1');
+        var btnR2 = document.getElementById('tab_btn_r2');
+        var panelR1 = document.getElementById('tab_panel_r1');
+        var panelR2 = document.getElementById('tab_panel_r2');
+        var hiddenTab = document.getElementById('active_marantz_tab');
+
+        if (tabName === 'r2') {
+            if (btnR1) btnR1.className = 'marantz-tab-btn';
+            if (btnR2) btnR2.className = 'marantz-tab-btn active';
+            if (panelR1) panelR1.style.display = 'none';
+            if (panelR2) panelR2.style.display = 'block';
+            if (hiddenTab) hiddenTab.value = 'r2';
+            try { localStorage.setItem('marantz_active_tab', 'r2'); } catch(e) {}
+        } else {
+            if (btnR1) btnR1.className = 'marantz-tab-btn active';
+            if (btnR2) btnR2.className = 'marantz-tab-btn';
+            if (panelR1) panelR1.style.display = 'block';
+            if (panelR2) panelR2.style.display = 'none';
+            if (hiddenTab) hiddenTab.value = 'r1';
+            try { localStorage.setItem('marantz_active_tab', 'r1'); } catch(e) {}
         }
     }
-    function cancelManualMac(zone) {
-        document.getElementById('mac_' + zone + '_manual_wrap').style.display = 'none';
-        document.getElementById('mac_' + zone + '_select_wrap').style.display = 'inline-flex';
-        document.getElementById('mac_' + zone + '_select').name = 'pref_mac_' + zone;
-        document.getElementById('mac_' + zone + '_input').name = '';
-        document.getElementById('mac_' + zone + '_select').value = '';
+
+    function checkManualMac(prefix, val) {
+        if (val === '__MANUAL__') {
+            document.getElementById('mac_' + prefix + '_select_wrap').style.display = 'none';
+            document.getElementById('mac_' + prefix + '_manual_wrap').style.display = 'inline-flex';
+            document.getElementById('mac_' + prefix + '_input').name = 'pref_mac_' + prefix;
+            document.getElementById('mac_' + prefix + '_select').name = '';
+            document.getElementById('mac_' + prefix + '_input').focus();
+        }
+    }
+    function cancelManualMac(prefix) {
+        document.getElementById('mac_' + prefix + '_manual_wrap').style.display = 'none';
+        document.getElementById('mac_' + prefix + '_select_wrap').style.display = 'inline-flex';
+        document.getElementById('mac_' + prefix + '_select').name = 'pref_mac_' + prefix;
+        document.getElementById('mac_' + prefix + '_input').name = '';
+        document.getElementById('mac_' + prefix + '_select').value = '';
     }
 
-    function checkManualRoomPreset(zone, val) {
-        var select = document.getElementById('room_preset_' + zone);
-        var customWrap = document.getElementById('room_preset_' + zone + '_custom_wrap');
-        var customInput = document.getElementById('room_preset_' + zone + '_custom');
+    function checkManualRoomPreset(prefix, val) {
+        var select = document.getElementById('room_preset_' + prefix);
+        var customWrap = document.getElementById('room_preset_' + prefix + '_custom_wrap');
+        var customInput = document.getElementById('room_preset_' + prefix + '_custom');
         if (!select || !customWrap || !customInput) return;
 
         if (val === '__CUSTOM__') {
             select.style.display = 'none';
             customWrap.style.display = 'inline-flex';
-            customInput.name = 'pref_room_preset_' + zone;
+            customInput.name = 'pref_room_preset_' + prefix;
             select.name = '';
             customInput.focus();
         }
     }
 
-    function cancelCustomRoomPreset(zone) {
-        var select = document.getElementById('room_preset_' + zone);
-        var customWrap = document.getElementById('room_preset_' + zone + '_custom_wrap');
-        var customInput = document.getElementById('room_preset_' + zone + '_custom');
+    function cancelCustomRoomPreset(prefix) {
+        var select = document.getElementById('room_preset_' + prefix);
+        var customWrap = document.getElementById('room_preset_' + prefix + '_custom_wrap');
+        var customInput = document.getElementById('room_preset_' + prefix + '_custom');
         if (!select || !customWrap || !customInput) return;
 
         customWrap.style.display = 'none';
         select.style.display = 'inline-block';
-        select.name = 'pref_room_preset_' + zone;
+        select.name = 'pref_room_preset_' + prefix;
+        customInput.name = '';
+        select.value = '';
+    }
+
+    function togglePlaylistType(prefix, val) {
+        var stdRow = document.getElementById('standard_playlist_row_' + prefix);
+        var dplRow = document.getElementById('dynamic_playlist_row_' + prefix);
+        if (!stdRow || !dplRow) return;
+
+        if (val === 'dynamic') {
+            stdRow.style.display = 'none';
+            dplRow.style.display = 'flex';
+        } else {
+            stdRow.style.display = 'flex';
+            dplRow.style.display = 'none';
+        }
+    }
+
+    function checkManualDynamicPl(prefix, val) {
+        var select = document.getElementById('dynamic_playlist_' + prefix);
+        var customWrap = document.getElementById('dynamic_playlist_' + prefix + '_custom_wrap');
+        var customInput = document.getElementById('dynamic_playlist_' + prefix + '_custom');
+        if (!select || !customWrap || !customInput) return;
+
+        if (val === '__CUSTOM__') {
+            select.style.display = 'none';
+            customWrap.style.display = 'inline-flex';
+            customInput.name = 'pref_dynamic_playlist_' + prefix;
+            select.name = '';
+            customInput.focus();
+        }
+    }
+
+    function cancelCustomDynamicPl(prefix) {
+        var select = document.getElementById('dynamic_playlist_' + prefix);
+        var customWrap = document.getElementById('dynamic_playlist_' + prefix + '_custom_wrap');
+        var customInput = document.getElementById('dynamic_playlist_' + prefix + '_custom');
+        if (!select || !customWrap || !customInput) return;
+
+        customWrap.style.display = 'none';
+        select.style.display = 'inline-block';
+        select.name = 'pref_dynamic_playlist_' + prefix;
         customInput.name = '';
         select.value = '';
     }
@@ -160,7 +285,7 @@
         }
 
         function updateSelectElements(playlists) {
-            var selects = ['playlist_z1', 'playlist_z2'];
+            var selects = ['playlist_z1', 'playlist_z2', 'playlist_r2_z1', 'playlist_r2_z2'];
             var count = 0;
             for (var s = 0; s < selects.length; s++) {
                 var el = document.getElementById(selects[s]);
@@ -188,7 +313,7 @@
                 }
             }
 
-            var badges = ['playlist_status_badge', 'playlist_status_badge_z1', 'playlist_status_badge_z2'];
+            var badges = ['playlist_status_badge', 'playlist_status_badge_z1', 'playlist_status_badge_z2', 'playlist_status_badge_r2_z1', 'playlist_status_badge_r2_z2'];
             for (var b = 0; b < badges.length; b++) {
                 var statusBadge = document.getElementById(badges[b]);
                 if (statusBadge) {
@@ -214,7 +339,7 @@
             }
         }
 
-        // Strategy 1: LMS Native JSON-RPC (instant in-memory query, works in all LMS/Lyrion versions)
+        // Strategy 1: LMS Native JSON-RPC
         var rpcUrl = webroot + "jsonrpc.js";
         var rpcData = {
             id: 1,
@@ -263,66 +388,12 @@
                         btn.disabled = false;
                         btn.value = originalText;
                     }
-                    var errBadges = ['playlist_status_badge', 'playlist_status_badge_z1', 'playlist_status_badge_z2'];
-                    for (var eb = 0; eb < errBadges.length; eb++) {
-                        var statusBadge = document.getElementById(errBadges[eb]);
-                        if (statusBadge) {
-                            statusBadge.style.display = 'inline-block';
-                            statusBadge.style.color = '#dc2626';
-                            statusBadge.innerText = '[% "PLUGIN_MARANTZHTTP_NO_PLAYLISTS_FOUND" | string %]';
-                            (function(badge) {
-                                setTimeout(function() { if (badge) badge.style.display = 'none'; }, 5000);
-                            })(statusBadge);
-                        }
-                    }
                 });
         });
     }
 
-    function togglePlaylistType(zone, val) {
-        var stdRow = document.getElementById('standard_playlist_row_' + zone);
-        var dplRow = document.getElementById('dynamic_playlist_row_' + zone);
-        if (!stdRow || !dplRow) return;
-
-        if (val === 'dynamic') {
-            stdRow.style.display = 'none';
-            dplRow.style.display = 'flex';
-        } else {
-            stdRow.style.display = 'flex';
-            dplRow.style.display = 'none';
-        }
-    }
-
-    function checkManualDynamicPl(zone, val) {
-        var select = document.getElementById('dynamic_playlist_' + zone);
-        var customWrap = document.getElementById('dynamic_playlist_' + zone + '_custom_wrap');
-        var customInput = document.getElementById('dynamic_playlist_' + zone + '_custom');
-        if (!select || !customWrap || !customInput) return;
-
-        if (val === '__CUSTOM__') {
-            select.style.display = 'none';
-            customWrap.style.display = 'inline-flex';
-            customInput.name = 'pref_dynamic_playlist_' + zone;
-            select.name = '';
-            customInput.focus();
-        }
-    }
-
-    function cancelCustomDynamicPl(zone) {
-        var select = document.getElementById('dynamic_playlist_' + zone);
-        var customWrap = document.getElementById('dynamic_playlist_' + zone + '_custom_wrap');
-        var customInput = document.getElementById('dynamic_playlist_' + zone + '_custom');
-        if (!select || !customWrap || !customInput) return;
-
-        customWrap.style.display = 'none';
-        select.style.display = 'inline-block';
-        select.name = 'pref_dynamic_playlist_' + zone;
-        customInput.name = '';
-        select.value = '';
-    }
-
     function updateDynamicSelectElements(dynamicPlaylists) {
-        var selects = ['dynamic_playlist_z1', 'dynamic_playlist_z2'];
+        var selects = ['dynamic_playlist_z1', 'dynamic_playlist_z2', 'dynamic_playlist_r2_z1', 'dynamic_playlist_r2_z2'];
         var count = 0;
 
         function cleanBase(str) {
@@ -334,7 +405,6 @@
             return s;
         }
 
-        // Deduplicate incoming playlist array upfront
         var uniquePlaylists = [];
         var seenInput = {};
         if (dynamicPlaylists && dynamicPlaylists.length > 0) {
@@ -345,9 +415,7 @@
                 if (!pid) continue;
                 var normKey = cleanBase(pid) || pid.toLowerCase();
 
-                if (seenInput[normKey]) {
-                    continue;
-                }
+                if (seenInput[normKey]) continue;
                 seenInput[normKey] = true;
                 uniquePlaylists.push(item);
             }
@@ -373,9 +441,7 @@
                 var pid = p.id || p.title || '';
                 var key = cleanBase(pid) || pid.toLowerCase();
 
-                if (seenInSelect[key]) {
-                    continue;
-                }
+                if (seenInSelect[key]) continue;
                 seenInSelect[key] = true;
 
                 var opt = document.createElement('option');
@@ -389,7 +455,6 @@
                 el.appendChild(opt);
             }
 
-            // If a previous custom value is present (e.g. 'topliedjes') and not matched, keep it selectable
             if (curVal && curVal !== '' && curVal !== '__CUSTOM__' && !found) {
                 var customPrevOpt = document.createElement('option');
                 customPrevOpt.value = curVal;
@@ -404,7 +469,7 @@
             el.appendChild(customOpt);
         }
 
-        var badges = ['dynamic_status_badge_z1', 'dynamic_status_badge_z2'];
+        var badges = ['dynamic_status_badge_z1', 'dynamic_status_badge_z2', 'dynamic_status_badge_r2_z1', 'dynamic_status_badge_r2_z2'];
         for (var b = 0; b < badges.length; b++) {
             var statusBadge = document.getElementById(badges[b]);
             if (statusBadge) {
@@ -457,22 +522,11 @@
                     btn.disabled = false;
                     btn.value = originalText;
                 }
-                var dBadges = ['dynamic_status_badge_z1', 'dynamic_status_badge_z2'];
-                for (var db = 0; db < dBadges.length; db++) {
-                    var statusBadge = document.getElementById(dBadges[db]);
-                    if (statusBadge) {
-                        statusBadge.style.display = 'inline-block';
-                        statusBadge.style.color = '#dc2626';
-                        statusBadge.innerText = '[% "PLUGIN_MARANTZHTTP_NO_DYNAMIC_PLAYLISTS_FOUND" | string %]';
-                        (function(badge) {
-                            setTimeout(function() { if (badge) badge.style.display = 'none'; }, 5000);
-                        })(statusBadge);
-                    }
-                }
             });
     }
 
-    function detectReceiverCapabilities(btn) {
+    function detectReceiverCapabilities(btn, recIdx) {
+        recIdx = recIdx || 1;
         var originalText = btn ? (btn.value || btn.innerHTML) : '';
         if (btn) {
             btn.disabled = true;
@@ -484,14 +538,14 @@
             webroot += "/";
         }
 
-        var ipInput = document.getElementById('ip');
-        var portInput = document.getElementById('port');
+        var ipInput = (recIdx === 2) ? document.getElementById('r2_ip') : document.getElementById('ip');
+        var portInput = (recIdx === 2) ? document.getElementById('r2_port') : document.getElementById('port');
         var ip = ipInput ? ipInput.value : '';
         var port = portInput ? portInput.value : '8080';
 
-        var badge = document.getElementById('sound_mode_status_badge');
+        var badge = (recIdx === 2) ? document.getElementById('sound_mode_status_badge_r2') : document.getElementById('sound_mode_status_badge');
 
-        var detectUrl = webroot + "plugins/MarantzHTTP/detect.json?ip=" + encodeURIComponent(ip) + "&port=" + encodeURIComponent(port);
+        var detectUrl = webroot + "plugins/MarantzHTTP/detect.json?rec=" + recIdx + "&ip=" + encodeURIComponent(ip) + "&port=" + encodeURIComponent(port);
         fetch(detectUrl, { cache: 'no-store' })
             .then(function(res) {
                 if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -506,9 +560,9 @@
                     if (badge) {
                         badge.style.display = 'inline-block';
                         badge.style.color = '#15803d';
-                        badge.innerText = '✓ ' + (data.model || 'Receiver') + ' gedetecteerd (Actieve modus: ' + (data.current_sound_mode || 'STEREO') + ')';
+                        badge.innerText = '✓ ' + (data.model || 'Receiver ' + recIdx) + ' gedetecteerd (Actieve modus: ' + (data.current_sound_mode || 'STEREO') + ')';
                     }
-                    var smSelect = document.getElementById('sound_mode_z1');
+                    var smSelect = (recIdx === 2) ? document.getElementById('sound_mode_r2_z1') : document.getElementById('sound_mode_z1');
                     if (smSelect && data.sound_modes && data.sound_modes.length > 0) {
                         var curVal = data.detected_cmd || smSelect.value;
                         smSelect.options.length = 0;
@@ -527,15 +581,8 @@
                             }
                             smSelect.appendChild(opt);
                         }
-                    } else if (smSelect && data.detected_cmd) {
-                        for (var i = 0; i < smSelect.options.length; i++) {
-                            if (smSelect.options[i].value === data.detected_cmd) {
-                                smSelect.selectedIndex = i;
-                                break;
-                            }
-                        }
                     }
-                    var chk = document.getElementById('set_sound_mode_on_power_z1');
+                    var chk = (recIdx === 2) ? document.getElementById('set_sound_mode_on_power_r2_z1') : document.getElementById('set_sound_mode_on_power_z1');
                     if (chk && !chk.checked) chk.checked = true;
                 } else {
                     if (badge) {
@@ -564,7 +611,6 @@
             });
     }
 
-    // Auto-fetch playlists in background on page load if dropdown has 1 or fewer options
     window.addEventListener('load', function() {
         var el1 = document.getElementById('playlist_type_z1');
         if (el1) togglePlaylistType('z1', el1.value);
@@ -572,511 +618,962 @@
         var el2 = document.getElementById('playlist_type_z2');
         if (el2) togglePlaylistType('z2', el2.value);
 
-        var el = document.getElementById('playlist_z1');
-        if (el && el.options.length <= 1) {
-            setTimeout(function() {
-                refreshPlaylists(null);
-            }, 300);
-        }
+        var elR2Z1 = document.getElementById('playlist_type_r2_z1');
+        if (elR2Z1) togglePlaylistType('r2_z1', elR2Z1.value);
+
+        var elR2Z2 = document.getElementById('playlist_type_r2_z2');
+        if (elR2Z2) togglePlaylistType('r2_z2', elR2Z2.value);
+
+        var savedTab = 'r1';
+        try {
+            savedTab = localStorage.getItem('marantz_active_tab') || 'r1';
+        } catch(e) {}
+        switchMarantzTab(savedTab);
     });
     </script>
 
-    <!-- 1. Algemene Netwerkinstellingen -->
-    <fieldset class="marantz-group">
-        <legend>[% "PLUGIN_MARANTZHTTP_SECTION_GENERAL" | string %]</legend>
-        
-        <div class="marantz-row">
-            <label class="marantz-label" for="ip">[% "PLUGIN_MARANTZHTTP_IP" | string %]</label>
-            <div class="marantz-info-col">
-                <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_IP_DESC' | string %]">i</span>
-            </div>
-            <div class="marantz-control">
-                <input type="text" class="stdedit" name="pref_ip" id="ip" value="[% prefs.pref_ip %]" placeholder="192.168.1.100" style="width: 200px;">
-            </div>
-        </div>
+    <input type="hidden" id="active_marantz_tab" name="active_marantz_tab" value="r1">
 
-        <div class="marantz-row">
-            <label class="marantz-label" for="port">[% "PLUGIN_MARANTZHTTP_PORT" | string %]</label>
-            <div class="marantz-info-col">
-                <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_PORT_DESC' | string %]">i</span>
-            </div>
-            <div class="marantz-control">
-                <input type="text" class="stdedit" name="pref_port" id="port" value="[% prefs.pref_port || '8080' %]" style="width: 100px;">
-            </div>
-        </div>
+    <!-- TAB NAVIGATION BAR -->
+    <div class="marantz-tab-nav">
+        <button type="button" class="marantz-tab-btn active" id="tab_btn_r1" onclick="switchMarantzTab('r1')">
+            <span class="marantz-tab-badge">1</span> [% "PLUGIN_MARANTZHTTP_TAB_RECEIVER_1" | string %]
+        </button>
+        <button type="button" class="marantz-tab-btn" id="tab_btn_r2" onclick="switchMarantzTab('r2')">
+            <span class="marantz-tab-badge">2</span> [% "PLUGIN_MARANTZHTTP_TAB_RECEIVER_2" | string %]
+        </button>
+    </div>
 
-        <div class="marantz-row">
-            <label class="marantz-label" for="sync_volume">[% "PLUGIN_MARANTZHTTP_SYNC_VOLUME" | string %]</label>
-            <div class="marantz-info-col">
-                <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_SYNC_VOLUME_DESC' | string %]">i</span>
-            </div>
-            <div class="marantz-control">
-                <input name="pref_sync_volume" id="sync_volume" value="1" type="checkbox" [% IF prefs.pref_sync_volume %] checked [% END %]>
-            </div>
-        </div>
-
-        <div class="marantz-row">
-            <label class="marantz-label" for="poll_interval">[% "PLUGIN_MARANTZHTTP_POLL_INTERVAL" | string %]</label>
-            <div class="marantz-info-col">
-                <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_POLL_INTERVAL_DESC' | string %]">i</span>
-            </div>
-            <div class="marantz-control">
-                <input type="number" min="1" max="10" class="stdedit" name="pref_poll_interval" id="poll_interval" value="[% prefs.pref_poll_interval || 2 %]" style="width: 100px;">
-            </div>
-        </div>
-    </fieldset>
-
-    <!-- 2. Hoofdzone (Zone 1) -->
-    <fieldset class="marantz-group">
-        <legend>[% "PLUGIN_MARANTZHTTP_SECTION_MAIN_ZONE" | string %]</legend>
-
-        <div class="marantz-row">
-            <label class="marantz-label" for="mac_z1_select">[% "PLUGIN_MARANTZHTTP_MAC_Z1" | string %]</label>
-            <div class="marantz-info-col">
-                <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_MAC_Z1_DESC' | string %]">i</span>
-            </div>
-            <div class="marantz-control">
-                <span id="mac_z1_select_wrap">
-                    <select class="stdedit" name="pref_mac_z1" id="mac_z1_select" onchange="checkManualMac('z1', this.value)" style="min-width: 250px;">
-                        <option value="">-- [% "PLUGIN_MARANTZHTTP_NONE" | string %] --</option>
-                        [% FOREACH player = available_players %]
-                            <option value="[% player.id %]" [% IF player.selected_z1 %]selected[% END %]>[% player.name %]</option>
-                        [% END %]
-                        <option value="__MANUAL__">[% "PLUGIN_MARANTZHTTP_ENTER_MANUALLY" | string %]</option>
-                    </select>
-                </span>
-                <span id="mac_z1_manual_wrap" style="display: none; align-items: center;">
-                    <input type="text" class="stdedit" id="mac_z1_input" value="[% prefs.pref_mac_z1 %]" placeholder="00:04:20:xx:xx:xx" style="width: 180px;">
-                    <input type="button" class="stdbtn" onclick="cancelManualMac('z1')" value="[% 'PLUGIN_MARANTZHTTP_CHOOSE_FROM_LIST' | string %]" style="margin-left: 5px;">
-                </span>
-            </div>
-        </div>
-
-        <!-- Subgroup: Power & Ingang -->
-        <fieldset class="marantz-subgroup">
-            <legend>[% "PLUGIN_MARANTZHTTP_SECTION_POWER_INPUT" | string %]</legend>
+    <!-- ====================================================================== -->
+    <!-- TAB 1: RECEIVER 1 (PRIMARY)                                            -->
+    <!-- ====================================================================== -->
+    <div id="tab_panel_r1" class="marantz-tab-panel">
+        <!-- 1. Algemene Netwerkinstellingen -->
+        <fieldset class="marantz-group">
+            <legend>[% "PLUGIN_MARANTZHTTP_SECTION_GENERAL" | string %]</legend>
+            
             <div class="marantz-row">
-                <label class="marantz-label" for="power_on_z1">[% "PLUGIN_MARANTZHTTP_POWER_ON_LABEL" | string %]</label>
-                <div class="marantz-info-col"></div>
+                <label class="marantz-label" for="ip">[% "PLUGIN_MARANTZHTTP_IP" | string %]</label>
+                <div class="marantz-info-col">
+                    <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_IP_DESC' | string %]">i</span>
+                </div>
                 <div class="marantz-control">
-                    <input name="pref_power_on_z1" id="power_on_z1" value="1" type="checkbox" [% IF prefs.pref_power_on_z1 %] checked [% END %]>
+                    <input type="text" class="stdedit" name="pref_ip" id="ip" value="[% prefs.pref_ip %]" placeholder="192.168.1.100" style="width: 200px;">
                 </div>
             </div>
+
             <div class="marantz-row">
-                <label class="marantz-label" for="source_z1">[% "PLUGIN_MARANTZHTTP_SOURCE_LABEL" | string %]</label>
-                <div class="marantz-info-col"></div>
+                <label class="marantz-label" for="port">[% "PLUGIN_MARANTZHTTP_PORT" | string %]</label>
+                <div class="marantz-info-col">
+                    <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_PORT_DESC' | string %]">i</span>
+                </div>
                 <div class="marantz-control">
-                    <select class="stdedit" name="pref_source_z1" id="source_z1" style="min-width: 140px;">
-                        [% FOREACH src = sources_z1 %]
-                            <option value="[% src.value %]" [% IF prefs.pref_source_z1 == src.value %]selected[% END %]>[% src.name %]</option>
-                        [% END %]
-                        [% UNLESS sources_z1.size %]
-                            <option value="SISAT/CBL" [% IF prefs.pref_source_z1 == 'SISAT/CBL' %]selected[% END %]>CBL/SAT</option>
-                            <option value="SIMEDIA_PLAYER" [% IF prefs.pref_source_z1 == 'SIMEDIA_PLAYER' %]selected[% END %]>Media Player</option>
-                            <option value="SICD" [% IF prefs.pref_source_z1 == 'SICD' %]selected[% END %]>CD</option>
-                            <option value="SIAUX1" [% IF prefs.pref_source_z1 == 'SIAUX1' %]selected[% END %]>AUX 1</option>
-                            <option value="SIBD" [% IF prefs.pref_source_z1 == 'SIBD' %]selected[% END %]>Blu-ray</option>
-                            <option value="SITV" [% IF prefs.pref_source_z1 == 'SITV' %]selected[% END %]>TV Audio</option>
-                            <option value="SIHEOS" [% IF prefs.pref_source_z1 == 'SIHEOS' %]selected[% END %]>HEOS / Network</option>
-                            <option value="SIGAME" [% IF prefs.pref_source_z1 == 'SIGAME' %]selected[% END %]>Game</option>
-                        [% END %]
-                    </select>
+                    <input type="text" class="stdedit" name="pref_port" id="port" value="[% prefs.pref_port || '8080' %]" style="width: 100px;">
+                </div>
+            </div>
+
+            <div class="marantz-row">
+                <label class="marantz-label" for="sync_volume">[% "PLUGIN_MARANTZHTTP_SYNC_VOLUME" | string %]</label>
+                <div class="marantz-info-col">
+                    <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_SYNC_VOLUME_DESC' | string %]">i</span>
+                </div>
+                <div class="marantz-control">
+                    <input name="pref_sync_volume" id="sync_volume" value="1" type="checkbox" [% IF prefs.pref_sync_volume %] checked [% END %]>
+                </div>
+            </div>
+
+            <div class="marantz-row">
+                <label class="marantz-label" for="poll_interval">[% "PLUGIN_MARANTZHTTP_POLL_INTERVAL" | string %]</label>
+                <div class="marantz-info-col">
+                    <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_POLL_INTERVAL_DESC' | string %]">i</span>
+                </div>
+                <div class="marantz-control">
+                    <input type="number" min="1" max="10" class="stdedit" name="pref_poll_interval" id="poll_interval" value="[% prefs.pref_poll_interval || 2 %]" style="width: 100px;">
                 </div>
             </div>
         </fieldset>
 
-        <!-- Subgroup: Geluidsmodus bij Opstarten (Sound Mode) -->
-        <fieldset class="marantz-subgroup">
-            <legend>[% "PLUGIN_MARANTZHTTP_SECTION_SOUND_MODE" | string %]</legend>
-            <div class="marantz-row">
-                <label class="marantz-label" for="set_sound_mode_on_power_z1">[% "PLUGIN_MARANTZHTTP_SET_SOUND_MODE_ON_POWER_Z1" | string %]</label>
-                <div class="marantz-info-col">
-                    <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_SET_SOUND_MODE_ON_POWER_Z1_DESC' | string %]">i</span>
-                </div>
-                <div class="marantz-control">
-                    <input name="pref_set_sound_mode_on_power_z1" id="set_sound_mode_on_power_z1" value="1" type="checkbox" [% IF prefs.pref_set_sound_mode_on_power_z1 %] checked [% END %]>
-                </div>
-            </div>
-            <div class="marantz-row">
-                <label class="marantz-label" for="sound_mode_z1">[% "PLUGIN_MARANTZHTTP_SOUND_MODE_Z1" | string %]</label>
-                <div class="marantz-info-col">
-                    <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_SOUND_MODE_Z1_DESC' | string %]">i</span>
-                </div>
-                <div class="marantz-control" style="flex-wrap: wrap; gap: 6px; align-items: center;">
-                    <select class="stdedit" name="pref_sound_mode_z1" id="sound_mode_z1" style="min-width: 250px;">
-                        <option value="">-- [% "PLUGIN_MARANTZHTTP_SOUND_MODE_KEEP_CURRENT" | string %] --</option>
-                        [% FOREACH sm = sound_modes_z1 %]
-                            <option value="[% sm.value %]" [% IF prefs.pref_sound_mode_z1 == sm.value %]selected[% END %] title="[% sm.desc %]">[% sm.name %]</option>
-                        [% END %]
-                        [% UNLESS sound_modes_z1.size %]
-                            <option value="MSSTEREO" [% IF prefs.pref_sound_mode_z1 == 'MSSTEREO' %]selected[% END %]>Stereo</option>
-                            <option value="MSDIRECT" [% IF prefs.pref_sound_mode_z1 == 'MSDIRECT' %]selected[% END %]>Direct</option>
-                            <option value="MSPURE DIRECT" [% IF prefs.pref_sound_mode_z1 == 'MSPURE DIRECT' %]selected[% END %]>Pure Direct</option>
-                            <option value="MSMCH STEREO" [% IF prefs.pref_sound_mode_z1 == 'MSMCH STEREO' %]selected[% END %]>Multi Ch Stereo</option>
-                            <option value="MSDOLBY DIGITAL" [% IF prefs.pref_sound_mode_z1 == 'MSDOLBY DIGITAL' %]selected[% END %]>Dolby Surround</option>
-                            <option value="MSDTS SURROUND" [% IF prefs.pref_sound_mode_z1 == 'MSDTS SURROUND' %]selected[% END %]>DTS Neural:X</option>
-                            <option value="MSVIRTUAL" [% IF prefs.pref_sound_mode_z1 == 'MSVIRTUAL' %]selected[% END %]>Virtual</option>
-                        [% END %]
-                    </select>
-                    <input type="button" class="stdbtn" onclick="detectReceiverCapabilities(this)" value="[% 'PLUGIN_MARANTZHTTP_DETECT_RECEIVER' | string %]" style="cursor: pointer; padding: 2px 8px;">
-                    <span id="sound_mode_status_badge" style="display: none; font-size: 11px; font-weight: bold; margin-left: 6px;"></span>
-                </div>
-            </div>
-        </fieldset>
+        <!-- 2. Hoofdzone (Zone 1) -->
+        <fieldset class="marantz-group">
+            <legend>[% "PLUGIN_MARANTZHTTP_SECTION_MAIN_ZONE" | string %]</legend>
 
-        <!-- Subgroup: Dirac / Audyssey Preset bij Opstarten (Room Calibration) -->
-        <fieldset class="marantz-subgroup">
-            <legend>[% "PLUGIN_MARANTZHTTP_SECTION_ROOM_PRESET" | string %]</legend>
             <div class="marantz-row">
-                <label class="marantz-label" for="set_room_preset_on_power_z1">[% "PLUGIN_MARANTZHTTP_SET_ROOM_PRESET_ON_POWER_Z1" | string %]</label>
+                <label class="marantz-label" for="mac_z1_select">[% "PLUGIN_MARANTZHTTP_MAC_Z1" | string %]</label>
                 <div class="marantz-info-col">
-                    <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_SET_ROOM_PRESET_ON_POWER_Z1_DESC' | string %]">i</span>
+                    <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_MAC_Z1_DESC' | string %]">i</span>
                 </div>
                 <div class="marantz-control">
-                    <input name="pref_set_room_preset_on_power_z1" id="set_room_preset_on_power_z1" value="1" type="checkbox" [% IF prefs.pref_set_room_preset_on_power_z1 %] checked [% END %]>
-                </div>
-            </div>
-            <div class="marantz-row">
-                <label class="marantz-label" for="room_preset_z1">[% "PLUGIN_MARANTZHTTP_ROOM_PRESET_Z1" | string %]</label>
-                <div class="marantz-info-col">
-                    <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_ROOM_PRESET_Z1_DESC' | string %]">i</span>
-                </div>
-                <div class="marantz-control" style="flex-wrap: wrap; gap: 6px; align-items: center;">
-                    <select class="stdedit" name="pref_room_preset_z1" id="room_preset_z1" onchange="checkManualRoomPreset('z1', this.value)" style="min-width: 250px;">
-                        <option value="">-- [% "PLUGIN_MARANTZHTTP_ROOM_PRESET_KEEP_CURRENT" | string %] --</option>
-                        [% FOREACH rp = room_presets_z1 %]
-                            <option value="[% rp.value %]" [% IF prefs.pref_room_preset_z1 == rp.value %]selected[% END %] title="[% rp.desc %]">[% rp.name %]</option>
-                        [% END %]
-                        [% UNLESS room_presets_z1.size %]
-                            <option value="SPPR 1" [% IF prefs.pref_room_preset_z1 == 'SPPR 1' %]selected[% END %]>Speaker Preset 1</option>
-                            <option value="SPPR 2" [% IF prefs.pref_room_preset_z1 == 'SPPR 2' %]selected[% END %]>Speaker Preset 2</option>
-                            <option value="PSDIRAC 1" [% IF prefs.pref_room_preset_z1 == 'PSDIRAC 1' %]selected[% END %]>Dirac Live - Slot 1</option>
-                            <option value="PSDIRAC 2" [% IF prefs.pref_room_preset_z1 == 'PSDIRAC 2' %]selected[% END %]>Dirac Live - Slot 2</option>
-                            <option value="PSDIRAC 3" [% IF prefs.pref_room_preset_z1 == 'PSDIRAC 3' %]selected[% END %]>Dirac Live - Slot 3</option>
-                            <option value="PSDIRAC OFF" [% IF prefs.pref_room_preset_z1 == 'PSDIRAC OFF' %]selected[% END %]>Dirac Live - Uit</option>
-                            <option value="PSMULTEQ:AUDYSSEY" [% IF prefs.pref_room_preset_z1 == 'PSMULTEQ:AUDYSSEY' %]selected[% END %]>Audyssey - Reference</option>
-                            <option value="PSMULTEQ:FLAT" [% IF prefs.pref_room_preset_z1 == 'PSMULTEQ:FLAT' %]selected[% END %]>Audyssey - Flat</option>
-                            <option value="PSMULTEQ:BYP.LR" [% IF prefs.pref_room_preset_z1 == 'PSMULTEQ:BYP.LR' %]selected[% END %]>Audyssey - L/R Bypass</option>
-                            <option value="PSMULTEQ:OFF" [% IF prefs.pref_room_preset_z1 == 'PSMULTEQ:OFF' %]selected[% END %]>Audyssey - Uit</option>
-                        [% END %]
-                        <option value="__CUSTOM__">[% "PLUGIN_MARANTZHTTP_ENTER_ROOM_PRESET_MANUALLY" | string %]</option>
-                    </select>
-                    <span id="room_preset_z1_custom_wrap" style="display: none; align-items: center;">
-                        <input type="text" class="stdedit" id="room_preset_z1_custom" value="[% prefs.pref_room_preset_z1 %]" placeholder="Bijv. SPPR 1 of PSDIRAC 1" style="width: 180px;">
-                        <input type="button" class="stdbtn" onclick="cancelCustomRoomPreset('z1')" value="[% 'PLUGIN_MARANTZHTTP_CHOOSE_FROM_LIST' | string %]" style="margin-left: 5px;">
+                    <span id="mac_z1_select_wrap">
+                        <select class="stdedit" name="pref_mac_z1" id="mac_z1_select" onchange="checkManualMac('z1', this.value)" style="min-width: 250px;">
+                            <option value="">-- [% "PLUGIN_MARANTZHTTP_NONE" | string %] --</option>
+                            [% FOREACH player = available_players %]
+                                <option value="[% player.id %]" [% IF player.selected_z1 %]selected[% END %]>[% player.name %]</option>
+                            [% END %]
+                            <option value="__MANUAL__">[% "PLUGIN_MARANTZHTTP_ENTER_MANUALLY" | string %]</option>
+                        </select>
+                    </span>
+                    <span id="mac_z1_manual_wrap" style="display: none; align-items: center;">
+                        <input type="text" class="stdedit" id="mac_z1_input" value="[% prefs.pref_mac_z1 %]" placeholder="00:04:20:xx:xx:xx" style="width: 180px;">
+                        <input type="button" class="stdbtn" onclick="cancelManualMac('z1')" value="[% 'PLUGIN_MARANTZHTTP_CHOOSE_FROM_LIST' | string %]" style="margin-left: 5px;">
                     </span>
                 </div>
             </div>
+
+            <!-- Subgroup: Power & Ingang -->
+            <fieldset class="marantz-subgroup">
+                <legend>[% "PLUGIN_MARANTZHTTP_SECTION_POWER_INPUT" | string %]</legend>
+                <div class="marantz-row">
+                    <label class="marantz-label" for="power_on_z1">[% "PLUGIN_MARANTZHTTP_POWER_ON_LABEL" | string %]</label>
+                    <div class="marantz-info-col"></div>
+                    <div class="marantz-control">
+                        <input name="pref_power_on_z1" id="power_on_z1" value="1" type="checkbox" [% IF prefs.pref_power_on_z1 %] checked [% END %]>
+                    </div>
+                </div>
+                <div class="marantz-row">
+                    <label class="marantz-label" for="source_z1">[% "PLUGIN_MARANTZHTTP_SOURCE_LABEL" | string %]</label>
+                    <div class="marantz-info-col"></div>
+                    <div class="marantz-control">
+                        <select class="stdedit" name="pref_source_z1" id="source_z1" style="min-width: 140px;">
+                            [% FOREACH src = sources_z1 %]
+                                <option value="[% src.value %]" [% IF prefs.pref_source_z1 == src.value %]selected[% END %]>[% src.name %]</option>
+                            [% END %]
+                        </select>
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- Subgroup: Geluidsmodus bij Opstarten -->
+            <fieldset class="marantz-subgroup">
+                <legend>[% "PLUGIN_MARANTZHTTP_SECTION_SOUND_MODE" | string %]</legend>
+                <div class="marantz-row">
+                    <label class="marantz-label" for="set_sound_mode_on_power_z1">[% "PLUGIN_MARANTZHTTP_SET_SOUND_MODE_ON_POWER_Z1" | string %]</label>
+                    <div class="marantz-info-col">
+                        <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_SET_SOUND_MODE_ON_POWER_Z1_DESC' | string %]">i</span>
+                    </div>
+                    <div class="marantz-control">
+                        <input name="pref_set_sound_mode_on_power_z1" id="set_sound_mode_on_power_z1" value="1" type="checkbox" [% IF prefs.pref_set_sound_mode_on_power_z1 %] checked [% END %]>
+                    </div>
+                </div>
+                <div class="marantz-row">
+                    <label class="marantz-label" for="sound_mode_z1">[% "PLUGIN_MARANTZHTTP_SOUND_MODE_Z1" | string %]</label>
+                    <div class="marantz-info-col">
+                        <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_SOUND_MODE_Z1_DESC' | string %]">i</span>
+                    </div>
+                    <div class="marantz-control" style="flex-wrap: wrap; gap: 6px; align-items: center;">
+                        <select class="stdedit" name="pref_sound_mode_z1" id="sound_mode_z1" style="min-width: 250px;">
+                            <option value="">-- [% "PLUGIN_MARANTZHTTP_SOUND_MODE_KEEP_CURRENT" | string %] --</option>
+                            [% FOREACH sm = sound_modes_z1 %]
+                                <option value="[% sm.value %]" [% IF prefs.pref_sound_mode_z1 == sm.value %]selected[% END %] title="[% sm.desc %]">[% sm.name %]</option>
+                            [% END %]
+                        </select>
+                        <input type="button" class="stdbtn" onclick="detectReceiverCapabilities(this, 1)" value="[% 'PLUGIN_MARANTZHTTP_DETECT_RECEIVER' | string %]" style="cursor: pointer; padding: 2px 8px;">
+                        <span id="sound_mode_status_badge" style="display: none; font-size: 11px; font-weight: bold; margin-left: 6px;"></span>
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- Subgroup: Dirac / Audyssey Preset bij Opstarten -->
+            <fieldset class="marantz-subgroup">
+                <legend>[% "PLUGIN_MARANTZHTTP_SECTION_ROOM_PRESET" | string %]</legend>
+                <div class="marantz-row">
+                    <label class="marantz-label" for="set_room_preset_on_power_z1">[% "PLUGIN_MARANTZHTTP_SET_ROOM_PRESET_ON_POWER_Z1" | string %]</label>
+                    <div class="marantz-info-col">
+                        <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_SET_ROOM_PRESET_ON_POWER_Z1_DESC' | string %]">i</span>
+                    </div>
+                    <div class="marantz-control">
+                        <input name="pref_set_room_preset_on_power_z1" id="set_room_preset_on_power_z1" value="1" type="checkbox" [% IF prefs.pref_set_room_preset_on_power_z1 %] checked [% END %]>
+                    </div>
+                </div>
+                <div class="marantz-row">
+                    <label class="marantz-label" for="room_preset_z1">[% "PLUGIN_MARANTZHTTP_ROOM_PRESET_Z1" | string %]</label>
+                    <div class="marantz-info-col">
+                        <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_ROOM_PRESET_Z1_DESC' | string %]">i</span>
+                    </div>
+                    <div class="marantz-control" style="flex-wrap: wrap; gap: 6px; align-items: center;">
+                        <select class="stdedit" name="pref_room_preset_z1" id="room_preset_z1" onchange="checkManualRoomPreset('z1', this.value)" style="min-width: 250px;">
+                            <option value="">-- [% "PLUGIN_MARANTZHTTP_ROOM_PRESET_KEEP_CURRENT" | string %] --</option>
+                            [% FOREACH rp = room_presets_z1 %]
+                                <option value="[% rp.value %]" [% IF prefs.pref_room_preset_z1 == rp.value %]selected[% END %] title="[% rp.desc %]">[% rp.name %]</option>
+                            [% END %]
+                            <option value="__CUSTOM__">[% "PLUGIN_MARANTZHTTP_ENTER_ROOM_PRESET_MANUALLY" | string %]</option>
+                        </select>
+                        <span id="room_preset_z1_custom_wrap" style="display: none; align-items: center;">
+                            <input type="text" class="stdedit" id="room_preset_z1_custom" value="[% prefs.pref_room_preset_z1 %]" placeholder="Bijv. SPPR 1 of PSDIRAC 1" style="width: 180px;">
+                            <input type="button" class="stdbtn" onclick="cancelCustomRoomPreset('z1')" value="[% 'PLUGIN_MARANTZHTTP_CHOOSE_FROM_LIST' | string %]" style="margin-left: 5px;">
+                        </span>
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- Subgroup: Playlist bij Opstarten -->
+            <fieldset class="marantz-subgroup">
+                <legend>[% "PLUGIN_MARANTZHTTP_SECTION_PLAYLIST_STARTUP" | string %]</legend>
+                <div class="marantz-row">
+                    <label class="marantz-label" for="play_playlist_on_power_z1">[% "PLUGIN_MARANTZHTTP_PLAY_PLAYLIST_ON_POWER" | string %]</label>
+                    <div class="marantz-info-col">
+                        <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_PLAYLIST_DESC' | string %]">i</span>
+                    </div>
+                    <div class="marantz-control">
+                        <input name="pref_play_playlist_on_power_z1" id="play_playlist_on_power_z1" value="1" type="checkbox" [% IF prefs.pref_play_playlist_on_power_z1 %] checked [% END %]>
+                    </div>
+                </div>
+
+                <div class="marantz-row" id="playlist_type_row_z1">
+                    <label class="marantz-label" for="playlist_type_z1">[% "PLUGIN_MARANTZHTTP_PLAYLIST_TYPE" | string %]</label>
+                    <div class="marantz-info-col">
+                        <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_PLAYLIST_TYPE_DESC' | string %]">i</span>
+                    </div>
+                    <div class="marantz-control">
+                        <select class="stdedit" name="pref_playlist_type_z1" id="playlist_type_z1" onchange="togglePlaylistType('z1', this.value)" style="min-width: 260px;">
+                            <option value="standard" [% IF !prefs.pref_playlist_type_z1 || prefs.pref_playlist_type_z1 == 'standard' %]selected[% END %]>[% "PLUGIN_MARANTZHTTP_PLAYLIST_TYPE_STANDARD" | string %]</option>
+                            <option value="dynamic" [% IF prefs.pref_playlist_type_z1 == 'dynamic' %]selected[% END %]>[% "PLUGIN_MARANTZHTTP_PLAYLIST_TYPE_DYNAMIC" | string %]</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="marantz-row" id="standard_playlist_row_z1">
+                    <label class="marantz-label" for="playlist_z1">[% "PLUGIN_MARANTZHTTP_PLAYLIST_SELECT" | string %]</label>
+                    <div class="marantz-info-col"></div>
+                    <div class="marantz-control" style="flex-wrap: nowrap; gap: 6px; align-items: center;">
+                        <select class="stdedit" name="pref_playlist_z1" id="playlist_z1" style="width: 320px;">
+                            <option value="">-- [% "PLUGIN_MARANTZHTTP_NONE" | string %] --</option>
+                            [% FOREACH pl = available_playlists %]
+                                <option value="[% pl.id %]" [% IF prefs.pref_playlist_z1 == pl.id %]selected[% END %]>[% pl.title %]</option>
+                            [% END %]
+                        </select>
+                        <input type="button" class="stdbtn" onclick="refreshPlaylists(this)" value="[% 'PLUGIN_MARANTZHTTP_UPDATE_PLAYLISTS' | string %]" style="cursor: pointer; padding: 2px 8px;">
+                        <span id="playlist_status_badge_z1" style="display: none; color: #15803d; font-size: 11px; font-weight: bold; margin-left: 6px;"></span>
+                    </div>
+                </div>
+
+                <div class="marantz-row" id="dynamic_playlist_row_z1" style="display: none;">
+                    <label class="marantz-label" for="dynamic_playlist_z1">[% "PLUGIN_MARANTZHTTP_DYNAMIC_PLAYLIST_SELECT" | string %]</label>
+                    <div class="marantz-info-col">
+                        <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_DYNAMIC_PLAYLIST_DESC' | string %]">i</span>
+                    </div>
+                    <div class="marantz-control" style="flex-wrap: nowrap; gap: 6px; align-items: center;">
+                        <select class="stdedit" name="pref_dynamic_playlist_z1" id="dynamic_playlist_z1" onchange="checkManualDynamicPl('z1', this.value)" style="width: 320px;">
+                            <option value="">-- [% "PLUGIN_MARANTZHTTP_NONE" | string %] --</option>
+                            [% FOREACH dpl = available_dynamic_playlists %]
+                                <option value="[% dpl.id %]" [% IF prefs.pref_dynamic_playlist_z1 == dpl.id || prefs.pref_dynamic_playlist_z1 == dpl.raw_name || prefs.pref_dynamic_playlist_z1 == dpl.clean_id %]selected[% END %]>[% dpl.title %]</option>
+                            [% END %]
+                            <option value="__CUSTOM__">[% "PLUGIN_MARANTZHTTP_ENTER_DYNAMIC_MANUALLY" | string %]</option>
+                        </select>
+                        <span id="dynamic_playlist_z1_custom_wrap" style="display: none; align-items: center;">
+                            <input type="text" class="stdedit" id="dynamic_playlist_z1_custom" placeholder="Bijv. topliedjes" style="width: 220px;">
+                            <input type="button" class="stdbtn" onclick="cancelCustomDynamicPl('z1')" value="[% 'PLUGIN_MARANTZHTTP_CHOOSE_FROM_LIST' | string %]" style="margin-left: 5px;">
+                        </span>
+                        <input type="button" class="stdbtn" onclick="refreshDynamicPlaylists(this)" value="[% 'PLUGIN_MARANTZHTTP_UPDATE_DYNAMIC_PLAYLISTS' | string %]" style="cursor: pointer; padding: 2px 8px;">
+                        <span id="dynamic_status_badge_z1" style="display: none; color: #15803d; font-size: 11px; font-weight: bold; margin-left: 6px;"></span>
+                    </div>
+                </div>
+
+                <div class="marantz-row">
+                    <label class="marantz-label" for="shuffle_z1">[% "PLUGIN_MARANTZHTTP_SHUFFLE_MODE" | string %]</label>
+                    <div class="marantz-info-col"></div>
+                    <div class="marantz-control">
+                        <select class="stdedit" name="pref_shuffle_z1" id="shuffle_z1" style="min-width: 180px;">
+                            <option value="0" [% IF !prefs.pref_shuffle_z1 || prefs.pref_shuffle_z1 == '0' %]selected[% END %]>[% "PLUGIN_MARANTZHTTP_SHUFFLE_OFF" | string %]</option>
+                            <option value="1" [% IF prefs.pref_shuffle_z1 == '1' %]selected[% END %]>[% "PLUGIN_MARANTZHTTP_SHUFFLE_SONGS" | string %]</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="marantz-row">
+                    <label class="marantz-label" for="play_only_if_empty_z1">[% "PLUGIN_MARANTZHTTP_PLAY_ONLY_IF_EMPTY" | string %]</label>
+                    <div class="marantz-info-col">
+                        <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_PLAY_ONLY_IF_EMPTY_DESC' | string %]">i</span>
+                    </div>
+                    <div class="marantz-control">
+                        <input name="pref_play_only_if_empty_z1" id="play_only_if_empty_z1" value="1" type="checkbox" [% IF prefs.pref_play_only_if_empty_z1 %] checked [% END %]>
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- Subgroup: Media-gedrag -->
+            <fieldset class="marantz-subgroup">
+                <legend>[% "PLUGIN_MARANTZHTTP_SECTION_MEDIA_BEHAVIOR" | string %]</legend>
+                <div class="marantz-row">
+                    <label class="marantz-label" for="pause_on_off_or_source_z1">[% "PLUGIN_MARANTZHTTP_PAUSE_LABEL" | string %]</label>
+                    <div class="marantz-info-col"></div>
+                    <div class="marantz-control">
+                        <input name="pref_pause_on_off_or_source_z1" id="pause_on_off_or_source_z1" value="1" type="checkbox" [% IF prefs.pref_pause_on_off_or_source_z1 %] checked [% END %]>
+                    </div>
+                </div>
+                <div class="marantz-row">
+                    <label class="marantz-label" for="resume_on_source_z1">[% "PLUGIN_MARANTZHTTP_RESUME_LABEL" | string %]</label>
+                    <div class="marantz-info-col"></div>
+                    <div class="marantz-control">
+                        <input name="pref_resume_on_source_z1" id="resume_on_source_z1" value="1" type="checkbox" [% IF prefs.pref_resume_on_source_z1 %] checked [% END %]>
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- Subgroup: Volumeinstellingen -->
+            <fieldset class="marantz-subgroup">
+                <legend>[% "PLUGIN_MARANTZHTTP_SECTION_VOLUME_SETTINGS" | string %]</legend>
+                <div class="marantz-row">
+                    <label class="marantz-label" for="set_volume_on_power_z1">[% "PLUGIN_MARANTZHTTP_SET_VOLUME_LABEL" | string %]</label>
+                    <div class="marantz-info-col"></div>
+                    <div class="marantz-control">
+                        <input name="pref_set_volume_on_power_z1" id="set_volume_on_power_z1" value="1" type="checkbox" [% IF prefs.pref_set_volume_on_power_z1 %] checked [% END %]>
+                    </div>
+                </div>
+                <div class="marantz-row">
+                    <label class="marantz-label sub" for="power_volume_z1">[% "PLUGIN_MARANTZHTTP_POWER_VOLUME_LABEL" | string %]</label>
+                    <div class="marantz-info-col"></div>
+                    <div class="marantz-control">
+                        <input type="number" min="0" max="98" class="stdedit" name="pref_power_volume_z1" id="power_volume_z1" value="[% prefs.pref_power_volume_z1 || 40 %]" style="width: 70px;">
+                    </div>
+                </div>
+            </fieldset>
         </fieldset>
 
-        <!-- Subgroup: Playlist bij Opstarten -->
-        <fieldset class="marantz-subgroup">
-            <legend>[% "PLUGIN_MARANTZHTTP_SECTION_PLAYLIST_STARTUP" | string %]</legend>
+        <!-- 3. Zone 2 (Receiver 1) -->
+        <fieldset class="marantz-group">
+            <legend>[% "PLUGIN_MARANTZHTTP_SECTION_ZONE_2" | string %]</legend>
+
             <div class="marantz-row">
-                <label class="marantz-label" for="play_playlist_on_power_z1">[% "PLUGIN_MARANTZHTTP_PLAY_PLAYLIST_ON_POWER" | string %]</label>
+                <label class="marantz-label" for="mac_z2_select">[% "PLUGIN_MARANTZHTTP_MAC_Z2" | string %]</label>
                 <div class="marantz-info-col">
-                    <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_PLAYLIST_DESC' | string %]">i</span>
+                    <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_MAC_Z2_DESC' | string %]">i</span>
                 </div>
                 <div class="marantz-control">
-                    <input name="pref_play_playlist_on_power_z1" id="play_playlist_on_power_z1" value="1" type="checkbox" [% IF prefs.pref_play_playlist_on_power_z1 %] checked [% END %]>
-                </div>
-            </div>
-
-            <!-- Playlist Type Selector: Standard vs Dynamic Playlists (v4.7.1) -->
-            <div class="marantz-row" id="playlist_type_row_z1">
-                <label class="marantz-label" for="playlist_type_z1">[% "PLUGIN_MARANTZHTTP_PLAYLIST_TYPE" | string %]</label>
-                <div class="marantz-info-col">
-                    <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_PLAYLIST_TYPE_DESC' | string %]">i</span>
-                </div>
-                <div class="marantz-control">
-                    <select class="stdedit" name="pref_playlist_type_z1" id="playlist_type_z1" onchange="togglePlaylistType('z1', this.value)" style="min-width: 260px;">
-                        <option value="standard" [% IF !prefs.pref_playlist_type_z1 || prefs.pref_playlist_type_z1 == 'standard' %]selected[% END %]>[% "PLUGIN_MARANTZHTTP_PLAYLIST_TYPE_STANDARD" | string %]</option>
-                        <option value="dynamic" [% IF prefs.pref_playlist_type_z1 == 'dynamic' %]selected[% END %]>[% "PLUGIN_MARANTZHTTP_PLAYLIST_TYPE_DYNAMIC" | string %]</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Standard Playlist Select -->
-            <div class="marantz-row" id="standard_playlist_row_z1">
-                <label class="marantz-label" for="playlist_z1">[% "PLUGIN_MARANTZHTTP_PLAYLIST_SELECT" | string %]</label>
-                <div class="marantz-info-col"></div>
-                <div class="marantz-control" style="flex-wrap: nowrap; gap: 6px; align-items: center;">
-                    <select class="stdedit" name="pref_playlist_z1" id="playlist_z1" style="width: 320px;">
-                        <option value="">-- [% "PLUGIN_MARANTZHTTP_NONE" | string %] --</option>
-                        [% FOREACH pl = available_playlists %]
-                            <option value="[% pl.id %]" [% IF prefs.pref_playlist_z1 == pl.id %]selected[% END %]>[% pl.title %]</option>
-                        [% END %]
-                    </select>
-                    <input type="button" class="stdbtn" onclick="refreshPlaylists(this)" value="[% 'PLUGIN_MARANTZHTTP_UPDATE_PLAYLISTS' | string %]" style="cursor: pointer; padding: 2px 8px;">
-                    <span id="playlist_status_badge" style="display: none; color: #15803d; font-size: 11px; font-weight: bold; margin-left: 6px;"></span>
-                </div>
-            </div>
-
-            <!-- Dynamic Playlist Select (via: Dynamic Playlists v4.7.1) -->
-            <div class="marantz-row" id="dynamic_playlist_row_z1" style="display: none;">
-                <label class="marantz-label" for="dynamic_playlist_z1">[% "PLUGIN_MARANTZHTTP_DYNAMIC_PLAYLIST_SELECT" | string %]</label>
-                <div class="marantz-info-col">
-                    <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_DYNAMIC_PLAYLIST_DESC' | string %]">i</span>
-                </div>
-                <div class="marantz-control" style="flex-wrap: nowrap; gap: 6px; align-items: center;">
-                    <select class="stdedit" name="pref_dynamic_playlist_z1" id="dynamic_playlist_z1" onchange="checkManualDynamicPl('z1', this.value)" style="width: 320px;">
-                        <option value="">-- [% "PLUGIN_MARANTZHTTP_NONE" | string %] --</option>
-                        [% FOREACH dpl = available_dynamic_playlists %]
-                            <option value="[% dpl.id %]" [% IF prefs.pref_dynamic_playlist_z1 == dpl.id || prefs.pref_dynamic_playlist_z1 == dpl.raw_name || prefs.pref_dynamic_playlist_z1 == dpl.clean_id %]selected[% END %]>[% dpl.title %]</option>
-                        [% END %]
-                        <option value="__CUSTOM__">[% "PLUGIN_MARANTZHTTP_ENTER_DYNAMIC_MANUALLY" | string %]</option>
-                    </select>
-                    <span id="dynamic_playlist_z1_custom_wrap" style="display: none; align-items: center;">
-                        <input type="text" class="stdedit" id="dynamic_playlist_z1_custom" placeholder="Bijv. topliedjes of dplccustom_topliedjes" style="width: 220px;">
-                        <input type="button" class="stdbtn" onclick="cancelCustomDynamicPl('z1')" value="[% 'PLUGIN_MARANTZHTTP_CHOOSE_FROM_LIST' | string %]" style="margin-left: 5px;">
+                    <span id="mac_z2_select_wrap">
+                        <select class="stdedit" name="pref_mac_z2" id="mac_z2_select" onchange="checkManualMac('z2', this.value)" style="min-width: 250px;">
+                            <option value="">-- [% "PLUGIN_MARANTZHTTP_NONE" | string %] --</option>
+                            [% FOREACH player = available_players %]
+                                <option value="[% player.id %]" [% IF player.selected_z2 %]selected[% END %]>[% player.name %]</option>
+                            [% END %]
+                            <option value="__MANUAL__">[% "PLUGIN_MARANTZHTTP_ENTER_MANUALLY" | string %]</option>
+                        </select>
                     </span>
-                    <input type="button" class="stdbtn" onclick="refreshDynamicPlaylists(this)" value="[% 'PLUGIN_MARANTZHTTP_UPDATE_DYNAMIC_PLAYLISTS' | string %]" style="cursor: pointer; padding: 2px 8px;">
-                    <span id="dynamic_status_badge_z1" style="display: none; color: #15803d; font-size: 11px; font-weight: bold; margin-left: 6px;"></span>
+                    <span id="mac_z2_manual_wrap" style="display: none; align-items: center;">
+                        <input type="text" class="stdedit" id="mac_z2_input" value="[% prefs.pref_mac_z2 %]" placeholder="00:04:20:yy:yy:yy" style="width: 180px;">
+                        <input type="button" class="stdbtn" onclick="cancelManualMac('z2')" value="[% 'PLUGIN_MARANTZHTTP_CHOOSE_FROM_LIST' | string %]" style="margin-left: 5px;">
+                    </span>
                 </div>
             </div>
 
-            <div class="marantz-row">
-                <label class="marantz-label" for="shuffle_z1">[% "PLUGIN_MARANTZHTTP_SHUFFLE_MODE" | string %]</label>
-                <div class="marantz-info-col"></div>
-                <div class="marantz-control">
-                    <select class="stdedit" name="pref_shuffle_z1" id="shuffle_z1" style="min-width: 180px;">
-                        <option value="0" [% IF !prefs.pref_shuffle_z1 || prefs.pref_shuffle_z1 == '0' %]selected[% END %]>[% "PLUGIN_MARANTZHTTP_SHUFFLE_OFF" | string %]</option>
-                        <option value="1" [% IF prefs.pref_shuffle_z1 == '1' %]selected[% END %]>[% "PLUGIN_MARANTZHTTP_SHUFFLE_SONGS" | string %]</option>
-                    </select>
+            <!-- Subgroup: Power & Ingang -->
+            <fieldset class="marantz-subgroup">
+                <legend>[% "PLUGIN_MARANTZHTTP_SECTION_POWER_INPUT" | string %]</legend>
+                <div class="marantz-row">
+                    <label class="marantz-label" for="power_on_z2">[% "PLUGIN_MARANTZHTTP_POWER_ON_LABEL" | string %]</label>
+                    <div class="marantz-info-col"></div>
+                    <div class="marantz-control">
+                        <input name="pref_power_on_z2" id="power_on_z2" value="1" type="checkbox" [% IF prefs.pref_power_on_z2 %] checked [% END %]>
+                    </div>
                 </div>
-            </div>
+                <div class="marantz-row">
+                    <label class="marantz-label" for="source_z2">[% "PLUGIN_MARANTZHTTP_SOURCE_LABEL" | string %]</label>
+                    <div class="marantz-info-col"></div>
+                    <div class="marantz-control">
+                        <select class="stdedit" name="pref_source_z2" id="source_z2" style="min-width: 150px;">
+                            [% FOREACH src = sources_z2 %]
+                                <option value="[% src.value %]" [% IF prefs.pref_source_z2 == src.value %]selected[% END %]>[% src.name %]</option>
+                            [% END %]
+                        </select>
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- Subgroup: Playlist bij Opstarten (Zone 2) -->
+            <fieldset class="marantz-subgroup">
+                <legend>[% "PLUGIN_MARANTZHTTP_SECTION_PLAYLIST_STARTUP" | string %]</legend>
+                <div class="marantz-row">
+                    <label class="marantz-label" for="play_playlist_on_power_z2">[% "PLUGIN_MARANTZHTTP_PLAY_PLAYLIST_ON_POWER" | string %]</label>
+                    <div class="marantz-info-col">
+                        <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_PLAYLIST_DESC' | string %]">i</span>
+                    </div>
+                    <div class="marantz-control">
+                        <input name="pref_play_playlist_on_power_z2" id="play_playlist_on_power_z2" value="1" type="checkbox" [% IF prefs.pref_play_playlist_on_power_z2 %] checked [% END %]>
+                    </div>
+                </div>
+
+                <div class="marantz-row" id="playlist_type_row_z2">
+                    <label class="marantz-label" for="playlist_type_z2">[% "PLUGIN_MARANTZHTTP_PLAYLIST_TYPE" | string %]</label>
+                    <div class="marantz-info-col">
+                        <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_PLAYLIST_TYPE_DESC' | string %]">i</span>
+                    </div>
+                    <div class="marantz-control">
+                        <select class="stdedit" name="pref_playlist_type_z2" id="playlist_type_z2" onchange="togglePlaylistType('z2', this.value)" style="min-width: 260px;">
+                            <option value="standard" [% IF !prefs.pref_playlist_type_z2 || prefs.pref_playlist_type_z2 == 'standard' %]selected[% END %]>[% "PLUGIN_MARANTZHTTP_PLAYLIST_TYPE_STANDARD" | string %]</option>
+                            <option value="dynamic" [% IF prefs.pref_playlist_type_z2 == 'dynamic' %]selected[% END %]>[% "PLUGIN_MARANTZHTTP_PLAYLIST_TYPE_DYNAMIC" | string %]</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="marantz-row" id="standard_playlist_row_z2">
+                    <label class="marantz-label" for="playlist_z2">[% "PLUGIN_MARANTZHTTP_PLAYLIST_SELECT" | string %]</label>
+                    <div class="marantz-info-col"></div>
+                    <div class="marantz-control" style="flex-wrap: nowrap; gap: 6px; align-items: center;">
+                        <select class="stdedit" name="pref_playlist_z2" id="playlist_z2" style="width: 320px;">
+                            <option value="">-- [% "PLUGIN_MARANTZHTTP_NONE" | string %] --</option>
+                            [% FOREACH pl = available_playlists %]
+                                <option value="[% pl.id %]" [% IF prefs.pref_playlist_z2 == pl.id %]selected[% END %]>[% pl.title %]</option>
+                            [% END %]
+                        </select>
+                        <input type="button" class="stdbtn" onclick="refreshPlaylists(this)" value="[% 'PLUGIN_MARANTZHTTP_UPDATE_PLAYLISTS' | string %]" style="cursor: pointer; padding: 2px 8px;">
+                        <span id="playlist_status_badge_z2" style="display: none; color: #15803d; font-size: 11px; font-weight: bold; margin-left: 6px;"></span>
+                    </div>
+                </div>
+
+                <div class="marantz-row" id="dynamic_playlist_row_z2" style="display: none;">
+                    <label class="marantz-label" for="dynamic_playlist_z2">[% "PLUGIN_MARANTZHTTP_DYNAMIC_PLAYLIST_SELECT" | string %]</label>
+                    <div class="marantz-info-col">
+                        <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_DYNAMIC_PLAYLIST_DESC' | string %]">i</span>
+                    </div>
+                    <div class="marantz-control" style="flex-wrap: nowrap; gap: 6px; align-items: center;">
+                        <select class="stdedit" name="pref_dynamic_playlist_z2" id="dynamic_playlist_z2" onchange="checkManualDynamicPl('z2', this.value)" style="width: 320px;">
+                            <option value="">-- [% "PLUGIN_MARANTZHTTP_NONE" | string %] --</option>
+                            [% FOREACH dpl = available_dynamic_playlists %]
+                                <option value="[% dpl.id %]" [% IF prefs.pref_dynamic_playlist_z2 == dpl.id || prefs.pref_dynamic_playlist_z2 == dpl.raw_name || prefs.pref_dynamic_playlist_z2 == dpl.clean_id %]selected[% END %]>[% dpl.title %]</option>
+                            [% END %]
+                            <option value="__CUSTOM__">[% "PLUGIN_MARANTZHTTP_ENTER_DYNAMIC_MANUALLY" | string %]</option>
+                        </select>
+                        <span id="dynamic_playlist_z2_custom_wrap" style="display: none; align-items: center;">
+                            <input type="text" class="stdedit" id="dynamic_playlist_z2_custom" placeholder="Bijv. topliedjes" style="width: 220px;">
+                            <input type="button" class="stdbtn" onclick="cancelCustomDynamicPl('z2')" value="[% 'PLUGIN_MARANTZHTTP_CHOOSE_FROM_LIST' | string %]" style="margin-left: 5px;">
+                        </span>
+                        <input type="button" class="stdbtn" onclick="refreshDynamicPlaylists(this)" value="[% 'PLUGIN_MARANTZHTTP_UPDATE_DYNAMIC_PLAYLISTS' | string %]" style="cursor: pointer; padding: 2px 8px;">
+                        <span id="dynamic_status_badge_z2" style="display: none; color: #15803d; font-size: 11px; font-weight: bold; margin-left: 6px;"></span>
+                    </div>
+                </div>
+
+                <div class="marantz-row">
+                    <label class="marantz-label" for="shuffle_z2">[% "PLUGIN_MARANTZHTTP_SHUFFLE_MODE" | string %]</label>
+                    <div class="marantz-info-col"></div>
+                    <div class="marantz-control">
+                        <select class="stdedit" name="pref_shuffle_z2" id="shuffle_z2" style="min-width: 180px;">
+                            <option value="0" [% IF !prefs.pref_shuffle_z2 || prefs.pref_shuffle_z2 == '0' %]selected[% END %]>[% "PLUGIN_MARANTZHTTP_SHUFFLE_OFF" | string %]</option>
+                            <option value="1" [% IF prefs.pref_shuffle_z2 == '1' %]selected[% END %]>[% "PLUGIN_MARANTZHTTP_SHUFFLE_SONGS" | string %]</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="marantz-row">
+                    <label class="marantz-label" for="play_only_if_empty_z2">[% "PLUGIN_MARANTZHTTP_PLAY_ONLY_IF_EMPTY" | string %]</label>
+                    <div class="marantz-info-col">
+                        <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_PLAY_ONLY_IF_EMPTY_DESC' | string %]">i</span>
+                    </div>
+                    <div class="marantz-control">
+                        <input name="pref_play_only_if_empty_z2" id="play_only_if_empty_z2" value="1" type="checkbox" [% IF prefs.pref_play_only_if_empty_z2 %] checked [% END %]>
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- Subgroup: Media-gedrag -->
+            <fieldset class="marantz-subgroup">
+                <legend>[% "PLUGIN_MARANTZHTTP_SECTION_MEDIA_BEHAVIOR" | string %]</legend>
+                <div class="marantz-row">
+                    <label class="marantz-label" for="pause_on_off_or_source_z2">[% "PLUGIN_MARANTZHTTP_PAUSE_LABEL" | string %]</label>
+                    <div class="marantz-info-col"></div>
+                    <div class="marantz-control">
+                        <input name="pref_pause_on_off_or_source_z2" id="pause_on_off_or_source_z2" value="1" type="checkbox" [% IF prefs.pref_pause_on_off_or_source_z2 %] checked [% END %]>
+                    </div>
+                </div>
+                <div class="marantz-row">
+                    <label class="marantz-label" for="resume_on_source_z2">[% "PLUGIN_MARANTZHTTP_RESUME_LABEL" | string %]</label>
+                    <div class="marantz-info-col"></div>
+                    <div class="marantz-control">
+                        <input name="pref_resume_on_source_z2" id="resume_on_source_z2" value="1" type="checkbox" [% IF prefs.pref_resume_on_source_z2 %] checked [% END %]>
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- Subgroup: Volumeinstellingen -->
+            <fieldset class="marantz-subgroup">
+                <legend>[% "PLUGIN_MARANTZHTTP_SECTION_VOLUME_SETTINGS" | string %]</legend>
+                <div class="marantz-row">
+                    <label class="marantz-label" for="set_volume_on_power_z2">[% "PLUGIN_MARANTZHTTP_SET_VOLUME_LABEL" | string %]</label>
+                    <div class="marantz-info-col"></div>
+                    <div class="marantz-control">
+                        <input name="pref_set_volume_on_power_z2" id="set_volume_on_power_z2" value="1" type="checkbox" [% IF prefs.pref_set_volume_on_power_z2 %] checked [% END %]>
+                    </div>
+                </div>
+                <div class="marantz-row">
+                    <label class="marantz-label sub" for="power_volume_z2">[% "PLUGIN_MARANTZHTTP_POWER_VOLUME_LABEL" | string %]</label>
+                    <div class="marantz-info-col"></div>
+                    <div class="marantz-control">
+                        <input type="number" min="0" max="98" class="stdedit" name="pref_power_volume_z2" id="power_volume_z2" value="[% prefs.pref_power_volume_z2 || 30 %]" style="width: 70px;">
+                    </div>
+                </div>
+            </fieldset>
+        </fieldset>
+    </div>
+
+    <!-- ====================================================================== -->
+    <!-- TAB 2: RECEIVER 2 (SECONDARY - INDEPENDENT)                             -->
+    <!-- ====================================================================== -->
+    <div id="tab_panel_r2" class="marantz-tab-panel" style="display: none;">
+        <!-- Receiver 2 Activatie -->
+        <fieldset class="marantz-group">
+            <legend>[% "PLUGIN_MARANTZHTTP_TAB_RECEIVER_2" | string %] - Activatie</legend>
             <div class="marantz-row">
-                <label class="marantz-label" for="play_only_if_empty_z1">[% "PLUGIN_MARANTZHTTP_PLAY_ONLY_IF_EMPTY" | string %]</label>
+                <label class="marantz-label" for="r2_enabled" style="font-weight: bold; color: #0369a1;">[% "PLUGIN_MARANTZHTTP_RECEIVER_2_ENABLE" | string %]</label>
                 <div class="marantz-info-col">
-                    <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_PLAY_ONLY_IF_EMPTY_DESC' | string %]">i</span>
+                    <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_RECEIVER_2_ENABLE_DESC' | string %]">i</span>
                 </div>
                 <div class="marantz-control">
-                    <input name="pref_play_only_if_empty_z1" id="play_only_if_empty_z1" value="1" type="checkbox" [% IF prefs.pref_play_only_if_empty_z1 %] checked [% END %]>
+                    <input name="pref_r2_enabled" id="r2_enabled" value="1" type="checkbox" [% IF prefs.pref_r2_enabled %] checked [% END %] onchange="var el = document.getElementById('r2_settings_area'); if (el) el.style.opacity = this.checked ? '1' : '0.6';">
+                    <span style="margin-left: 8px; color: #64748b; font-size: 11px;">[% "PLUGIN_MARANTZHTTP_RECEIVER_2_ENABLE_DESC" | string %]</span>
                 </div>
             </div>
         </fieldset>
 
-        <!-- Subgroup: Media-gedrag -->
-        <fieldset class="marantz-subgroup">
-            <legend>[% "PLUGIN_MARANTZHTTP_SECTION_MEDIA_BEHAVIOR" | string %]</legend>
-            <div class="marantz-row">
-                <label class="marantz-label" for="pause_on_off_or_source_z1">[% "PLUGIN_MARANTZHTTP_PAUSE_LABEL" | string %]</label>
-                <div class="marantz-info-col"></div>
-                <div class="marantz-control">
-                    <input name="pref_pause_on_off_or_source_z1" id="pause_on_off_or_source_z1" value="1" type="checkbox" [% IF prefs.pref_pause_on_off_or_source_z1 %] checked [% END %]>
+        <div id="r2_settings_area" style="[% UNLESS prefs.pref_r2_enabled %]opacity: 0.75;[% END %] transition: opacity 0.2s;">
+            <!-- 1. Algemene Netwerkinstellingen (Receiver 2) -->
+            <fieldset class="marantz-group">
+                <legend>[% "PLUGIN_MARANTZHTTP_R2_SECTION_GENERAL" | string %]</legend>
+                
+                <div class="marantz-row">
+                    <label class="marantz-label" for="r2_ip">[% "PLUGIN_MARANTZHTTP_IP" | string %]</label>
+                    <div class="marantz-info-col">
+                        <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_R2_IP_DESC' | string %]">i</span>
+                    </div>
+                    <div class="marantz-control">
+                        <input type="text" class="stdedit" name="pref_r2_ip" id="r2_ip" value="[% prefs.pref_r2_ip %]" placeholder="192.168.1.101" style="width: 200px;">
+                    </div>
                 </div>
-            </div>
-            <div class="marantz-row">
-                <label class="marantz-label" for="resume_on_source_z1">[% "PLUGIN_MARANTZHTTP_RESUME_LABEL" | string %]</label>
-                <div class="marantz-info-col"></div>
-                <div class="marantz-control">
-                    <input name="pref_resume_on_source_z1" id="resume_on_source_z1" value="1" type="checkbox" [% IF prefs.pref_resume_on_source_z1 %] checked [% END %]>
-                </div>
-            </div>
-        </fieldset>
 
-        <!-- Subgroup: Volumeinstellingen -->
-        <fieldset class="marantz-subgroup">
-            <legend>[% "PLUGIN_MARANTZHTTP_SECTION_VOLUME_SETTINGS" | string %]</legend>
-            <div class="marantz-row">
-                <label class="marantz-label" for="set_volume_on_power_z1">[% "PLUGIN_MARANTZHTTP_SET_VOLUME_LABEL" | string %]</label>
-                <div class="marantz-info-col"></div>
-                <div class="marantz-control">
-                    <input name="pref_set_volume_on_power_z1" id="set_volume_on_power_z1" value="1" type="checkbox" [% IF prefs.pref_set_volume_on_power_z1 %] checked [% END %]>
+                <div class="marantz-row">
+                    <label class="marantz-label" for="r2_port">[% "PLUGIN_MARANTZHTTP_PORT" | string %]</label>
+                    <div class="marantz-info-col">
+                        <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_R2_PORT_DESC' | string %]">i</span>
+                    </div>
+                    <div class="marantz-control">
+                        <input type="text" class="stdedit" name="pref_r2_port" id="r2_port" value="[% prefs.pref_r2_port || '8080' %]" style="width: 100px;">
+                    </div>
                 </div>
-            </div>
-            <div class="marantz-row">
-                <label class="marantz-label sub" for="power_volume_z1">[% "PLUGIN_MARANTZHTTP_POWER_VOLUME_LABEL" | string %]</label>
-                <div class="marantz-info-col"></div>
-                <div class="marantz-control">
-                    <input type="number" min="0" max="98" class="stdedit" name="pref_power_volume_z1" id="power_volume_z1" value="[% prefs.pref_power_volume_z1 || 40 %]" style="width: 70px;">
+
+                <div class="marantz-row">
+                    <label class="marantz-label" for="r2_sync_volume">[% "PLUGIN_MARANTZHTTP_SYNC_VOLUME" | string %]</label>
+                    <div class="marantz-info-col">
+                        <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_SYNC_VOLUME_DESC' | string %]">i</span>
+                    </div>
+                    <div class="marantz-control">
+                        <input name="pref_r2_sync_volume" id="r2_sync_volume" value="1" type="checkbox" [% IF prefs.pref_r2_sync_volume %] checked [% END %]>
+                    </div>
                 </div>
-            </div>
-        </fieldset>
-    </fieldset>
 
-    <!-- 3. Zone 2 -->
-    <fieldset class="marantz-group">
-        <legend>[% "PLUGIN_MARANTZHTTP_SECTION_ZONE_2" | string %]</legend>
+                <div class="marantz-row">
+                    <label class="marantz-label" for="r2_poll_interval">[% "PLUGIN_MARANTZHTTP_POLL_INTERVAL" | string %]</label>
+                    <div class="marantz-info-col">
+                        <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_POLL_INTERVAL_DESC' | string %]">i</span>
+                    </div>
+                    <div class="marantz-control">
+                        <input type="number" min="1" max="10" class="stdedit" name="pref_r2_poll_interval" id="r2_poll_interval" value="[% prefs.pref_r2_poll_interval || 2 %]" style="width: 100px;">
+                    </div>
+                </div>
+            </fieldset>
 
-        <div class="marantz-row">
-            <label class="marantz-label" for="mac_z2_select">[% "PLUGIN_MARANTZHTTP_MAC_Z2" | string %]</label>
-            <div class="marantz-info-col">
-                <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_MAC_Z2_DESC' | string %]">i</span>
-            </div>
-            <div class="marantz-control">
-                <span id="mac_z2_select_wrap">
-                    <select class="stdedit" name="pref_mac_z2" id="mac_z2_select" onchange="checkManualMac('z2', this.value)" style="min-width: 250px;">
-                        <option value="">-- [% "PLUGIN_MARANTZHTTP_NONE" | string %] --</option>
-                        [% FOREACH player = available_players %]
-                            <option value="[% player.id %]" [% IF player.selected_z2 %]selected[% END %]>[% player.name %]</option>
-                        [% END %]
-                        <option value="__MANUAL__">[% "PLUGIN_MARANTZHTTP_ENTER_MANUALLY" | string %]</option>
-                    </select>
-                </span>
-                <span id="mac_z2_manual_wrap" style="display: none; align-items: center;">
-                    <input type="text" class="stdedit" id="mac_z2_input" value="[% prefs.pref_mac_z2 %]" placeholder="00:04:20:yy:yy:yy" style="width: 180px;">
-                    <input type="button" class="stdbtn" onclick="cancelManualMac('z2')" value="[% 'PLUGIN_MARANTZHTTP_CHOOSE_FROM_LIST' | string %]" style="margin-left: 5px;">
-                </span>
-            </div>
+            <!-- 2. Hoofdzone (Receiver 2 Zone 1) -->
+            <fieldset class="marantz-group">
+                <legend>[% "PLUGIN_MARANTZHTTP_R2_SECTION_MAIN_ZONE" | string %]</legend>
+
+                <div class="marantz-row">
+                    <label class="marantz-label" for="mac_r2_z1_select">[% "PLUGIN_MARANTZHTTP_MAC_Z1" | string %]</label>
+                    <div class="marantz-info-col">
+                        <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_R2_MAC_Z1_DESC' | string %]">i</span>
+                    </div>
+                    <div class="marantz-control">
+                        <span id="mac_r2_z1_select_wrap">
+                            <select class="stdedit" name="pref_r2_mac_z1" id="mac_r2_z1_select" onchange="checkManualMac('r2_z1', this.value)" style="min-width: 250px;">
+                                <option value="">-- [% "PLUGIN_MARANTZHTTP_NONE" | string %] --</option>
+                                [% FOREACH player = available_players %]
+                                    <option value="[% player.id %]" [% IF player.selected_r2_z1 %]selected[% END %]>[% player.name %]</option>
+                                [% END %]
+                                <option value="__MANUAL__">[% "PLUGIN_MARANTZHTTP_ENTER_MANUALLY" | string %]</option>
+                            </select>
+                        </span>
+                        <span id="mac_r2_z1_manual_wrap" style="display: none; align-items: center;">
+                            <input type="text" class="stdedit" id="mac_r2_z1_input" value="[% prefs.pref_r2_mac_z1 %]" placeholder="00:04:20:xx:xx:xx" style="width: 180px;">
+                            <input type="button" class="stdbtn" onclick="cancelManualMac('r2_z1')" value="[% 'PLUGIN_MARANTZHTTP_CHOOSE_FROM_LIST' | string %]" style="margin-left: 5px;">
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Subgroup: Power & Ingang -->
+                <fieldset class="marantz-subgroup">
+                    <legend>[% "PLUGIN_MARANTZHTTP_SECTION_POWER_INPUT" | string %]</legend>
+                    <div class="marantz-row">
+                        <label class="marantz-label" for="r2_power_on_z1">[% "PLUGIN_MARANTZHTTP_POWER_ON_LABEL" | string %]</label>
+                        <div class="marantz-info-col"></div>
+                        <div class="marantz-control">
+                            <input name="pref_r2_power_on_z1" id="r2_power_on_z1" value="1" type="checkbox" [% IF prefs.pref_r2_power_on_z1 %] checked [% END %]>
+                        </div>
+                    </div>
+                    <div class="marantz-row">
+                        <label class="marantz-label" for="r2_source_z1">[% "PLUGIN_MARANTZHTTP_SOURCE_LABEL" | string %]</label>
+                        <div class="marantz-info-col"></div>
+                        <div class="marantz-control">
+                            <select class="stdedit" name="pref_r2_source_z1" id="r2_source_z1" style="min-width: 140px;">
+                                [% FOREACH src = sources_r2_z1 %]
+                                    <option value="[% src.value %]" [% IF prefs.pref_r2_source_z1 == src.value %]selected[% END %]>[% src.name %]</option>
+                                [% END %]
+                            </select>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- Subgroup: Geluidsmodus bij Opstarten (Receiver 2) -->
+                <fieldset class="marantz-subgroup">
+                    <legend>[% "PLUGIN_MARANTZHTTP_SECTION_SOUND_MODE" | string %]</legend>
+                    <div class="marantz-row">
+                        <label class="marantz-label" for="set_sound_mode_on_power_r2_z1">[% "PLUGIN_MARANTZHTTP_SET_SOUND_MODE_ON_POWER_Z1" | string %]</label>
+                        <div class="marantz-info-col">
+                            <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_SET_SOUND_MODE_ON_POWER_Z1_DESC' | string %]">i</span>
+                        </div>
+                        <div class="marantz-control">
+                            <input name="pref_r2_set_sound_mode_on_power_z1" id="set_sound_mode_on_power_r2_z1" value="1" type="checkbox" [% IF prefs.pref_r2_set_sound_mode_on_power_z1 %] checked [% END %]>
+                        </div>
+                    </div>
+                    <div class="marantz-row">
+                        <label class="marantz-label" for="sound_mode_r2_z1">[% "PLUGIN_MARANTZHTTP_SOUND_MODE_Z1" | string %]</label>
+                        <div class="marantz-info-col">
+                            <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_SOUND_MODE_Z1_DESC' | string %]">i</span>
+                        </div>
+                        <div class="marantz-control" style="flex-wrap: wrap; gap: 6px; align-items: center;">
+                            <select class="stdedit" name="pref_r2_sound_mode_z1" id="sound_mode_r2_z1" style="min-width: 250px;">
+                                <option value="">-- [% "PLUGIN_MARANTZHTTP_SOUND_MODE_KEEP_CURRENT" | string %] --</option>
+                                [% FOREACH sm = sound_modes_r2_z1 %]
+                                    <option value="[% sm.value %]" [% IF prefs.pref_r2_sound_mode_z1 == sm.value %]selected[% END %] title="[% sm.desc %]">[% sm.name %]</option>
+                                [% END %]
+                            </select>
+                            <input type="button" class="stdbtn" onclick="detectReceiverCapabilities(this, 2)" value="[% 'PLUGIN_MARANTZHTTP_DETECT_RECEIVER_R2' | string %]" style="cursor: pointer; padding: 2px 8px;">
+                            <span id="sound_mode_status_badge_r2" style="display: none; font-size: 11px; font-weight: bold; margin-left: 6px;"></span>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- Subgroup: Dirac / Audyssey Preset bij Opstarten (Receiver 2) -->
+                <fieldset class="marantz-subgroup">
+                    <legend>[% "PLUGIN_MARANTZHTTP_SECTION_ROOM_PRESET" | string %]</legend>
+                    <div class="marantz-row">
+                        <label class="marantz-label" for="set_room_preset_on_power_r2_z1">[% "PLUGIN_MARANTZHTTP_SET_ROOM_PRESET_ON_POWER_Z1" | string %]</label>
+                        <div class="marantz-info-col">
+                            <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_SET_ROOM_PRESET_ON_POWER_Z1_DESC' | string %]">i</span>
+                        </div>
+                        <div class="marantz-control">
+                            <input name="pref_r2_set_room_preset_on_power_z1" id="set_room_preset_on_power_r2_z1" value="1" type="checkbox" [% IF prefs.pref_r2_set_room_preset_on_power_z1 %] checked [% END %]>
+                        </div>
+                    </div>
+                    <div class="marantz-row">
+                        <label class="marantz-label" for="room_preset_r2_z1">[% "PLUGIN_MARANTZHTTP_ROOM_PRESET_Z1" | string %]</label>
+                        <div class="marantz-info-col">
+                            <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_ROOM_PRESET_Z1_DESC' | string %]">i</span>
+                        </div>
+                        <div class="marantz-control" style="flex-wrap: wrap; gap: 6px; align-items: center;">
+                            <select class="stdedit" name="pref_r2_room_preset_z1" id="room_preset_r2_z1" onchange="checkManualRoomPreset('r2_z1', this.value)" style="min-width: 250px;">
+                                <option value="">-- [% "PLUGIN_MARANTZHTTP_ROOM_PRESET_KEEP_CURRENT" | string %] --</option>
+                                [% FOREACH rp = room_presets_r2_z1 %]
+                                    <option value="[% rp.value %]" [% IF prefs.pref_r2_room_preset_z1 == rp.value %]selected[% END %] title="[% rp.desc %]">[% rp.name %]</option>
+                                [% END %]
+                                <option value="__CUSTOM__">[% "PLUGIN_MARANTZHTTP_ENTER_ROOM_PRESET_MANUALLY" | string %]</option>
+                            </select>
+                            <span id="room_preset_r2_z1_custom_wrap" style="display: none; align-items: center;">
+                                <input type="text" class="stdedit" id="room_preset_r2_z1_custom" value="[% prefs.pref_r2_room_preset_z1 %]" placeholder="Bijv. SPPR 1 of PSDIRAC 1" style="width: 180px;">
+                                <input type="button" class="stdbtn" onclick="cancelCustomRoomPreset('r2_z1')" value="[% 'PLUGIN_MARANTZHTTP_CHOOSE_FROM_LIST' | string %]" style="margin-left: 5px;">
+                            </span>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- Subgroup: Playlist bij Opstarten (Receiver 2 Zone 1) -->
+                <fieldset class="marantz-subgroup">
+                    <legend>[% "PLUGIN_MARANTZHTTP_SECTION_PLAYLIST_STARTUP" | string %]</legend>
+                    <div class="marantz-row">
+                        <label class="marantz-label" for="r2_play_playlist_on_power_z1">[% "PLUGIN_MARANTZHTTP_PLAY_PLAYLIST_ON_POWER" | string %]</label>
+                        <div class="marantz-info-col">
+                            <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_PLAYLIST_DESC' | string %]">i</span>
+                        </div>
+                        <div class="marantz-control">
+                            <input name="pref_r2_play_playlist_on_power_z1" id="r2_play_playlist_on_power_z1" value="1" type="checkbox" [% IF prefs.pref_r2_play_playlist_on_power_z1 %] checked [% END %]>
+                        </div>
+                    </div>
+
+                    <div class="marantz-row" id="playlist_type_row_r2_z1">
+                        <label class="marantz-label" for="playlist_type_r2_z1">[% "PLUGIN_MARANTZHTTP_PLAYLIST_TYPE" | string %]</label>
+                        <div class="marantz-info-col">
+                            <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_PLAYLIST_TYPE_DESC' | string %]">i</span>
+                        </div>
+                        <div class="marantz-control">
+                            <select class="stdedit" name="pref_r2_playlist_type_z1" id="playlist_type_r2_z1" onchange="togglePlaylistType('r2_z1', this.value)" style="min-width: 260px;">
+                                <option value="standard" [% IF !prefs.pref_r2_playlist_type_z1 || prefs.pref_r2_playlist_type_z1 == 'standard' %]selected[% END %]>[% "PLUGIN_MARANTZHTTP_PLAYLIST_TYPE_STANDARD" | string %]</option>
+                                <option value="dynamic" [% IF prefs.pref_r2_playlist_type_z1 == 'dynamic' %]selected[% END %]>[% "PLUGIN_MARANTZHTTP_PLAYLIST_TYPE_DYNAMIC" | string %]</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="marantz-row" id="standard_playlist_row_r2_z1">
+                        <label class="marantz-label" for="playlist_r2_z1">[% "PLUGIN_MARANTZHTTP_PLAYLIST_SELECT" | string %]</label>
+                        <div class="marantz-info-col"></div>
+                        <div class="marantz-control" style="flex-wrap: nowrap; gap: 6px; align-items: center;">
+                            <select class="stdedit" name="pref_r2_playlist_z1" id="playlist_r2_z1" style="width: 320px;">
+                                <option value="">-- [% "PLUGIN_MARANTZHTTP_NONE" | string %] --</option>
+                                [% FOREACH pl = available_playlists %]
+                                    <option value="[% pl.id %]" [% IF prefs.pref_r2_playlist_z1 == pl.id %]selected[% END %]>[% pl.title %]</option>
+                                [% END %]
+                            </select>
+                            <input type="button" class="stdbtn" onclick="refreshPlaylists(this)" value="[% 'PLUGIN_MARANTZHTTP_UPDATE_PLAYLISTS' | string %]" style="cursor: pointer; padding: 2px 8px;">
+                            <span id="playlist_status_badge_r2_z1" style="display: none; color: #15803d; font-size: 11px; font-weight: bold; margin-left: 6px;"></span>
+                        </div>
+                    </div>
+
+                    <div class="marantz-row" id="dynamic_playlist_row_r2_z1" style="display: none;">
+                        <label class="marantz-label" for="dynamic_playlist_r2_z1">[% "PLUGIN_MARANTZHTTP_DYNAMIC_PLAYLIST_SELECT" | string %]</label>
+                        <div class="marantz-info-col">
+                            <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_DYNAMIC_PLAYLIST_DESC' | string %]">i</span>
+                        </div>
+                        <div class="marantz-control" style="flex-wrap: nowrap; gap: 6px; align-items: center;">
+                            <select class="stdedit" name="pref_r2_dynamic_playlist_z1" id="dynamic_playlist_r2_z1" onchange="checkManualDynamicPl('r2_z1', this.value)" style="width: 320px;">
+                                <option value="">-- [% "PLUGIN_MARANTZHTTP_NONE" | string %] --</option>
+                                [% FOREACH dpl = available_dynamic_playlists %]
+                                    <option value="[% dpl.id %]" [% IF prefs.pref_r2_dynamic_playlist_z1 == dpl.id || prefs.pref_r2_dynamic_playlist_z1 == dpl.raw_name || prefs.pref_r2_dynamic_playlist_z1 == dpl.clean_id %]selected[% END %]>[% dpl.title %]</option>
+                                [% END %]
+                                <option value="__CUSTOM__">[% "PLUGIN_MARANTZHTTP_ENTER_DYNAMIC_MANUALLY" | string %]</option>
+                            </select>
+                            <span id="dynamic_playlist_r2_z1_custom_wrap" style="display: none; align-items: center;">
+                                <input type="text" class="stdedit" id="dynamic_playlist_r2_z1_custom" placeholder="Bijv. topliedjes" style="width: 220px;">
+                                <input type="button" class="stdbtn" onclick="cancelCustomDynamicPl('r2_z1')" value="[% 'PLUGIN_MARANTZHTTP_CHOOSE_FROM_LIST' | string %]" style="margin-left: 5px;">
+                            </span>
+                            <input type="button" class="stdbtn" onclick="refreshDynamicPlaylists(this)" value="[% 'PLUGIN_MARANTZHTTP_UPDATE_DYNAMIC_PLAYLISTS' | string %]" style="cursor: pointer; padding: 2px 8px;">
+                            <span id="dynamic_status_badge_r2_z1" style="display: none; color: #15803d; font-size: 11px; font-weight: bold; margin-left: 6px;"></span>
+                        </div>
+                    </div>
+
+                    <div class="marantz-row">
+                        <label class="marantz-label" for="r2_shuffle_z1">[% "PLUGIN_MARANTZHTTP_SHUFFLE_MODE" | string %]</label>
+                        <div class="marantz-info-col"></div>
+                        <div class="marantz-control">
+                            <select class="stdedit" name="pref_r2_shuffle_z1" id="r2_shuffle_z1" style="min-width: 180px;">
+                                <option value="0" [% IF !prefs.pref_r2_shuffle_z1 || prefs.pref_r2_shuffle_z1 == '0' %]selected[% END %]>[% "PLUGIN_MARANTZHTTP_SHUFFLE_OFF" | string %]</option>
+                                <option value="1" [% IF prefs.pref_r2_shuffle_z1 == '1' %]selected[% END %]>[% "PLUGIN_MARANTZHTTP_SHUFFLE_SONGS" | string %]</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="marantz-row">
+                        <label class="marantz-label" for="r2_play_only_if_empty_z1">[% "PLUGIN_MARANTZHTTP_PLAY_ONLY_IF_EMPTY" | string %]</label>
+                        <div class="marantz-info-col">
+                            <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_PLAY_ONLY_IF_EMPTY_DESC' | string %]">i</span>
+                        </div>
+                        <div class="marantz-control">
+                            <input name="pref_r2_play_only_if_empty_z1" id="r2_play_only_if_empty_z1" value="1" type="checkbox" [% IF prefs.pref_r2_play_only_if_empty_z1 %] checked [% END %]>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- Subgroup: Media-gedrag (Receiver 2 Zone 1) -->
+                <fieldset class="marantz-subgroup">
+                    <legend>[% "PLUGIN_MARANTZHTTP_SECTION_MEDIA_BEHAVIOR" | string %]</legend>
+                    <div class="marantz-row">
+                        <label class="marantz-label" for="r2_pause_on_off_or_source_z1">[% "PLUGIN_MARANTZHTTP_PAUSE_LABEL" | string %]</label>
+                        <div class="marantz-info-col"></div>
+                        <div class="marantz-control">
+                            <input name="pref_r2_pause_on_off_or_source_z1" id="r2_pause_on_off_or_source_z1" value="1" type="checkbox" [% IF prefs.pref_r2_pause_on_off_or_source_z1 %] checked [% END %]>
+                        </div>
+                    </div>
+                    <div class="marantz-row">
+                        <label class="marantz-label" for="r2_resume_on_source_z1">[% "PLUGIN_MARANTZHTTP_RESUME_LABEL" | string %]</label>
+                        <div class="marantz-info-col"></div>
+                        <div class="marantz-control">
+                            <input name="pref_r2_resume_on_source_z1" id="r2_resume_on_source_z1" value="1" type="checkbox" [% IF prefs.pref_r2_resume_on_source_z1 %] checked [% END %]>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- Subgroup: Volumeinstellingen (Receiver 2 Zone 1) -->
+                <fieldset class="marantz-subgroup">
+                    <legend>[% "PLUGIN_MARANTZHTTP_SECTION_VOLUME_SETTINGS" | string %]</legend>
+                    <div class="marantz-row">
+                        <label class="marantz-label" for="r2_set_volume_on_power_z1">[% "PLUGIN_MARANTZHTTP_SET_VOLUME_LABEL" | string %]</label>
+                        <div class="marantz-info-col"></div>
+                        <div class="marantz-control">
+                            <input name="pref_r2_set_volume_on_power_z1" id="r2_set_volume_on_power_z1" value="1" type="checkbox" [% IF prefs.pref_r2_set_volume_on_power_z1 %] checked [% END %]>
+                        </div>
+                    </div>
+                    <div class="marantz-row">
+                        <label class="marantz-label sub" for="r2_power_volume_z1">[% "PLUGIN_MARANTZHTTP_POWER_VOLUME_LABEL" | string %]</label>
+                        <div class="marantz-info-col"></div>
+                        <div class="marantz-control">
+                            <input type="number" min="0" max="98" class="stdedit" name="pref_r2_power_volume_z1" id="r2_power_volume_z1" value="[% prefs.pref_r2_power_volume_z1 || 40 %]" style="width: 70px;">
+                        </div>
+                    </div>
+                </fieldset>
+            </fieldset>
+
+            <!-- 3. Zone 2 (Receiver 2) -->
+            <fieldset class="marantz-group">
+                <legend>[% "PLUGIN_MARANTZHTTP_R2_SECTION_ZONE_2" | string %]</legend>
+
+                <div class="marantz-row">
+                    <label class="marantz-label" for="mac_r2_z2_select">[% "PLUGIN_MARANTZHTTP_MAC_Z2" | string %]</label>
+                    <div class="marantz-info-col">
+                        <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_R2_MAC_Z2_DESC' | string %]">i</span>
+                    </div>
+                    <div class="marantz-control">
+                        <span id="mac_r2_z2_select_wrap">
+                            <select class="stdedit" name="pref_r2_mac_z2" id="mac_r2_z2_select" onchange="checkManualMac('r2_z2', this.value)" style="min-width: 250px;">
+                                <option value="">-- [% "PLUGIN_MARANTZHTTP_NONE" | string %] --</option>
+                                [% FOREACH player = available_players %]
+                                    <option value="[% player.id %]" [% IF player.selected_r2_z2 %]selected[% END %]>[% player.name %]</option>
+                                [% END %]
+                                <option value="__MANUAL__">[% "PLUGIN_MARANTZHTTP_ENTER_MANUALLY" | string %]</option>
+                            </select>
+                        </span>
+                        <span id="mac_r2_z2_manual_wrap" style="display: none; align-items: center;">
+                            <input type="text" class="stdedit" id="mac_r2_z2_input" value="[% prefs.pref_r2_mac_z2 %]" placeholder="00:04:20:yy:yy:yy" style="width: 180px;">
+                            <input type="button" class="stdbtn" onclick="cancelManualMac('r2_z2')" value="[% 'PLUGIN_MARANTZHTTP_CHOOSE_FROM_LIST' | string %]" style="margin-left: 5px;">
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Subgroup: Power & Ingang -->
+                <fieldset class="marantz-subgroup">
+                    <legend>[% "PLUGIN_MARANTZHTTP_SECTION_POWER_INPUT" | string %]</legend>
+                    <div class="marantz-row">
+                        <label class="marantz-label" for="r2_power_on_z2">[% "PLUGIN_MARANTZHTTP_POWER_ON_LABEL" | string %]</label>
+                        <div class="marantz-info-col"></div>
+                        <div class="marantz-control">
+                            <input name="pref_r2_power_on_z2" id="r2_power_on_z2" value="1" type="checkbox" [% IF prefs.pref_r2_power_on_z2 %] checked [% END %]>
+                        </div>
+                    </div>
+                    <div class="marantz-row">
+                        <label class="marantz-label" for="r2_source_z2">[% "PLUGIN_MARANTZHTTP_SOURCE_LABEL" | string %]</label>
+                        <div class="marantz-info-col"></div>
+                        <div class="marantz-control">
+                            <select class="stdedit" name="pref_r2_source_z2" id="r2_source_z2" style="min-width: 150px;">
+                                [% FOREACH src = sources_r2_z2 %]
+                                    <option value="[% src.value %]" [% IF prefs.pref_r2_source_z2 == src.value %]selected[% END %]>[% src.name %]</option>
+                                [% END %]
+                            </select>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- Subgroup: Playlist bij Opstarten (Receiver 2 Zone 2) -->
+                <fieldset class="marantz-subgroup">
+                    <legend>[% "PLUGIN_MARANTZHTTP_SECTION_PLAYLIST_STARTUP" | string %]</legend>
+                    <div class="marantz-row">
+                        <label class="marantz-label" for="r2_play_playlist_on_power_z2">[% "PLUGIN_MARANTZHTTP_PLAY_PLAYLIST_ON_POWER" | string %]</label>
+                        <div class="marantz-info-col">
+                            <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_PLAYLIST_DESC' | string %]">i</span>
+                        </div>
+                        <div class="marantz-control">
+                            <input name="pref_r2_play_playlist_on_power_z2" id="r2_play_playlist_on_power_z2" value="1" type="checkbox" [% IF prefs.pref_r2_play_playlist_on_power_z2 %] checked [% END %]>
+                        </div>
+                    </div>
+
+                    <div class="marantz-row" id="playlist_type_row_r2_z2">
+                        <label class="marantz-label" for="playlist_type_r2_z2">[% "PLUGIN_MARANTZHTTP_PLAYLIST_TYPE" | string %]</label>
+                        <div class="marantz-info-col">
+                            <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_PLAYLIST_TYPE_DESC' | string %]">i</span>
+                        </div>
+                        <div class="marantz-control">
+                            <select class="stdedit" name="pref_r2_playlist_type_z2" id="playlist_type_r2_z2" onchange="togglePlaylistType('r2_z2', this.value)" style="min-width: 260px;">
+                                <option value="standard" [% IF !prefs.pref_r2_playlist_type_z2 || prefs.pref_r2_playlist_type_z2 == 'standard' %]selected[% END %]>[% "PLUGIN_MARANTZHTTP_PLAYLIST_TYPE_STANDARD" | string %]</option>
+                                <option value="dynamic" [% IF prefs.pref_r2_playlist_type_z2 == 'dynamic' %]selected[% END %]>[% "PLUGIN_MARANTZHTTP_PLAYLIST_TYPE_DYNAMIC" | string %]</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="marantz-row" id="standard_playlist_row_r2_z2">
+                        <label class="marantz-label" for="playlist_r2_z2">[% "PLUGIN_MARANTZHTTP_PLAYLIST_SELECT" | string %]</label>
+                        <div class="marantz-info-col"></div>
+                        <div class="marantz-control" style="flex-wrap: nowrap; gap: 6px; align-items: center;">
+                            <select class="stdedit" name="pref_r2_playlist_z2" id="playlist_r2_z2" style="width: 320px;">
+                                <option value="">-- [% "PLUGIN_MARANTZHTTP_NONE" | string %] --</option>
+                                [% FOREACH pl = available_playlists %]
+                                    <option value="[% pl.id %]" [% IF prefs.pref_r2_playlist_z2 == pl.id %]selected[% END %]>[% pl.title %]</option>
+                                [% END %]
+                            </select>
+                            <input type="button" class="stdbtn" onclick="refreshPlaylists(this)" value="[% 'PLUGIN_MARANTZHTTP_UPDATE_PLAYLISTS' | string %]" style="cursor: pointer; padding: 2px 8px;">
+                            <span id="playlist_status_badge_r2_z2" style="display: none; color: #15803d; font-size: 11px; font-weight: bold; margin-left: 6px;"></span>
+                        </div>
+                    </div>
+
+                    <div class="marantz-row" id="dynamic_playlist_row_r2_z2" style="display: none;">
+                        <label class="marantz-label" for="dynamic_playlist_r2_z2">[% "PLUGIN_MARANTZHTTP_DYNAMIC_PLAYLIST_SELECT" | string %]</label>
+                        <div class="marantz-info-col">
+                            <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_DYNAMIC_PLAYLIST_DESC' | string %]">i</span>
+                        </div>
+                        <div class="marantz-control" style="flex-wrap: nowrap; gap: 6px; align-items: center;">
+                            <select class="stdedit" name="pref_r2_dynamic_playlist_z2" id="dynamic_playlist_r2_z2" onchange="checkManualDynamicPl('r2_z2', this.value)" style="width: 320px;">
+                                <option value="">-- [% "PLUGIN_MARANTZHTTP_NONE" | string %] --</option>
+                                [% FOREACH dpl = available_dynamic_playlists %]
+                                    <option value="[% dpl.id %]" [% IF prefs.pref_r2_dynamic_playlist_z2 == dpl.id || prefs.pref_r2_dynamic_playlist_z2 == dpl.raw_name || prefs.pref_r2_dynamic_playlist_z2 == dpl.clean_id %]selected[% END %]>[% dpl.title %]</option>
+                                [% END %]
+                                <option value="__CUSTOM__">[% "PLUGIN_MARANTZHTTP_ENTER_DYNAMIC_MANUALLY" | string %]</option>
+                            </select>
+                            <span id="dynamic_playlist_r2_z2_custom_wrap" style="display: none; align-items: center;">
+                                <input type="text" class="stdedit" id="dynamic_playlist_r2_z2_custom" placeholder="Bijv. topliedjes" style="width: 220px;">
+                                <input type="button" class="stdbtn" onclick="cancelCustomDynamicPl('r2_z2')" value="[% 'PLUGIN_MARANTZHTTP_CHOOSE_FROM_LIST' | string %]" style="margin-left: 5px;">
+                            </span>
+                            <input type="button" class="stdbtn" onclick="refreshDynamicPlaylists(this)" value="[% 'PLUGIN_MARANTZHTTP_UPDATE_DYNAMIC_PLAYLISTS' | string %]" style="cursor: pointer; padding: 2px 8px;">
+                            <span id="dynamic_status_badge_r2_z2" style="display: none; color: #15803d; font-size: 11px; font-weight: bold; margin-left: 6px;"></span>
+                        </div>
+                    </div>
+
+                    <div class="marantz-row">
+                        <label class="marantz-label" for="r2_shuffle_z2">[% "PLUGIN_MARANTZHTTP_SHUFFLE_MODE" | string %]</label>
+                        <div class="marantz-info-col"></div>
+                        <div class="marantz-control">
+                            <select class="stdedit" name="pref_r2_shuffle_z2" id="r2_shuffle_z2" style="min-width: 180px;">
+                                <option value="0" [% IF !prefs.pref_r2_shuffle_z2 || prefs.pref_r2_shuffle_z2 == '0' %]selected[% END %]>[% "PLUGIN_MARANTZHTTP_SHUFFLE_OFF" | string %]</option>
+                                <option value="1" [% IF prefs.pref_r2_shuffle_z2 == '1' %]selected[% END %]>[% "PLUGIN_MARANTZHTTP_SHUFFLE_SONGS" | string %]</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="marantz-row">
+                        <label class="marantz-label" for="r2_play_only_if_empty_z2">[% "PLUGIN_MARANTZHTTP_PLAY_ONLY_IF_EMPTY" | string %]</label>
+                        <div class="marantz-info-col">
+                            <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_PLAY_ONLY_IF_EMPTY_DESC' | string %]">i</span>
+                        </div>
+                        <div class="marantz-control">
+                            <input name="pref_r2_play_only_if_empty_z2" id="r2_play_only_if_empty_z2" value="1" type="checkbox" [% IF prefs.pref_r2_play_only_if_empty_z2 %] checked [% END %]>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- Subgroup: Media-gedrag (Receiver 2 Zone 2) -->
+                <fieldset class="marantz-subgroup">
+                    <legend>[% "PLUGIN_MARANTZHTTP_SECTION_MEDIA_BEHAVIOR" | string %]</legend>
+                    <div class="marantz-row">
+                        <label class="marantz-label" for="r2_pause_on_off_or_source_z2">[% "PLUGIN_MARANTZHTTP_PAUSE_LABEL" | string %]</label>
+                        <div class="marantz-info-col"></div>
+                        <div class="marantz-control">
+                            <input name="pref_r2_pause_on_off_or_source_z2" id="r2_pause_on_off_or_source_z2" value="1" type="checkbox" [% IF prefs.pref_r2_pause_on_off_or_source_z2 %] checked [% END %]>
+                        </div>
+                    </div>
+                    <div class="marantz-row">
+                        <label class="marantz-label" for="r2_resume_on_source_z2">[% "PLUGIN_MARANTZHTTP_RESUME_LABEL" | string %]</label>
+                        <div class="marantz-info-col"></div>
+                        <div class="marantz-control">
+                            <input name="pref_r2_resume_on_source_z2" id="r2_resume_on_source_z2" value="1" type="checkbox" [% IF prefs.pref_r2_resume_on_source_z2 %] checked [% END %]>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- Subgroup: Volumeinstellingen (Receiver 2 Zone 2) -->
+                <fieldset class="marantz-subgroup">
+                    <legend>[% "PLUGIN_MARANTZHTTP_SECTION_VOLUME_SETTINGS" | string %]</legend>
+                    <div class="marantz-row">
+                        <label class="marantz-label" for="r2_set_volume_on_power_z2">[% "PLUGIN_MARANTZHTTP_SET_VOLUME_LABEL" | string %]</label>
+                        <div class="marantz-info-col"></div>
+                        <div class="marantz-control">
+                            <input name="pref_r2_set_volume_on_power_z2" id="r2_set_volume_on_power_z2" value="1" type="checkbox" [% IF prefs.pref_r2_set_volume_on_power_z2 %] checked [% END %]>
+                        </div>
+                    </div>
+                    <div class="marantz-row">
+                        <label class="marantz-label sub" for="r2_power_volume_z2">[% "PLUGIN_MARANTZHTTP_POWER_VOLUME_LABEL" | string %]</label>
+                        <div class="marantz-info-col"></div>
+                        <div class="marantz-control">
+                            <input type="number" min="0" max="98" class="stdedit" name="pref_r2_power_volume_z2" id="r2_power_volume_z2" value="[% prefs.pref_r2_power_volume_z2 || 30 %]" style="width: 70px;">
+                        </div>
+                    </div>
+                </fieldset>
+            </fieldset>
         </div>
-
-        <!-- Subgroup: Power & Ingang -->
-        <fieldset class="marantz-subgroup">
-            <legend>[% "PLUGIN_MARANTZHTTP_SECTION_POWER_INPUT" | string %]</legend>
-            <div class="marantz-row">
-                <label class="marantz-label" for="power_on_z2">[% "PLUGIN_MARANTZHTTP_POWER_ON_LABEL" | string %]</label>
-                <div class="marantz-info-col"></div>
-                <div class="marantz-control">
-                    <input name="pref_power_on_z2" id="power_on_z2" value="1" type="checkbox" [% IF prefs.pref_power_on_z2 %] checked [% END %]>
-                </div>
-            </div>
-            <div class="marantz-row">
-                <label class="marantz-label" for="source_z2">[% "PLUGIN_MARANTZHTTP_SOURCE_LABEL" | string %]</label>
-                <div class="marantz-info-col"></div>
-                <div class="marantz-control">
-                    <select class="stdedit" name="pref_source_z2" id="source_z2" style="min-width: 150px;">
-                        [% FOREACH src = sources_z2 %]
-                            <option value="[% src.value %]" [% IF prefs.pref_source_z2 == src.value %]selected[% END %]>[% src.name %]</option>
-                        [% END %]
-                        [% UNLESS sources_z2.size %]
-                            <option value="Z2NET" [% IF prefs.pref_source_z2 == 'Z2NET' %]selected[% END %]>HEOS / Network</option>
-                            <option value="Z2SAT/CBL" [% IF prefs.pref_source_z2 == 'Z2SAT/CBL' %]selected[% END %]>CBL/SAT</option>
-                            <option value="Z2MEDIA_PLAYER" [% IF prefs.pref_source_z2 == 'Z2MEDIA_PLAYER' %]selected[% END %]>Media Player</option>
-                            <option value="Z2CD" [% IF prefs.pref_source_z2 == 'Z2CD' %]selected[% END %]>CD</option>
-                            <option value="Z2AUX1" [% IF prefs.pref_source_z2 == 'Z2AUX1' %]selected[% END %]>AUX 1</option>
-                            <option value="Z2SOURCE" [% IF prefs.pref_source_z2 == 'Z2SOURCE' %]selected[% END %]>Follow Main Zone</option>
-                        [% END %]
-                    </select>
-                </div>
-            </div>
-        </fieldset>
-
-        <!-- Subgroup: Playlist bij Opstarten (Zone 2) -->
-        <fieldset class="marantz-subgroup">
-            <legend>[% "PLUGIN_MARANTZHTTP_SECTION_PLAYLIST_STARTUP" | string %]</legend>
-            <div class="marantz-row">
-                <label class="marantz-label" for="play_playlist_on_power_z2">[% "PLUGIN_MARANTZHTTP_PLAY_PLAYLIST_ON_POWER" | string %]</label>
-                <div class="marantz-info-col">
-                    <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_PLAYLIST_DESC' | string %]">i</span>
-                </div>
-                <div class="marantz-control">
-                    <input name="pref_play_playlist_on_power_z2" id="play_playlist_on_power_z2" value="1" type="checkbox" [% IF prefs.pref_play_playlist_on_power_z2 %] checked [% END %]>
-                </div>
-            </div>
-
-            <!-- Playlist Type Selector Zone 2: Standard vs Dynamic Playlists (v4.7.1) -->
-            <div class="marantz-row" id="playlist_type_row_z2">
-                <label class="marantz-label" for="playlist_type_z2">[% "PLUGIN_MARANTZHTTP_PLAYLIST_TYPE" | string %]</label>
-                <div class="marantz-info-col">
-                    <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_PLAYLIST_TYPE_DESC' | string %]">i</span>
-                </div>
-                <div class="marantz-control">
-                    <select class="stdedit" name="pref_playlist_type_z2" id="playlist_type_z2" onchange="togglePlaylistType('z2', this.value)" style="min-width: 260px;">
-                        <option value="standard" [% IF !prefs.pref_playlist_type_z2 || prefs.pref_playlist_type_z2 == 'standard' %]selected[% END %]>[% "PLUGIN_MARANTZHTTP_PLAYLIST_TYPE_STANDARD" | string %]</option>
-                        <option value="dynamic" [% IF prefs.pref_playlist_type_z2 == 'dynamic' %]selected[% END %]>[% "PLUGIN_MARANTZHTTP_PLAYLIST_TYPE_DYNAMIC" | string %]</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Standard Playlist Select Zone 2 -->
-            <div class="marantz-row" id="standard_playlist_row_z2">
-                <label class="marantz-label" for="playlist_z2">[% "PLUGIN_MARANTZHTTP_PLAYLIST_SELECT" | string %]</label>
-                <div class="marantz-info-col"></div>
-                <div class="marantz-control" style="flex-wrap: nowrap; gap: 6px; align-items: center;">
-                    <select class="stdedit" name="pref_playlist_z2" id="playlist_z2" style="width: 320px;">
-                        <option value="">-- [% "PLUGIN_MARANTZHTTP_NONE" | string %] --</option>
-                        [% FOREACH pl = available_playlists %]
-                            <option value="[% pl.id %]" [% IF prefs.pref_playlist_z2 == pl.id %]selected[% END %]>[% pl.title %]</option>
-                        [% END %]
-                    </select>
-                    <input type="button" class="stdbtn" onclick="refreshPlaylists(this)" value="[% 'PLUGIN_MARANTZHTTP_UPDATE_PLAYLISTS' | string %]" style="cursor: pointer; padding: 2px 8px;">
-                    <span id="playlist_status_badge_z2" style="display: none; color: #15803d; font-size: 11px; font-weight: bold; margin-left: 6px;"></span>
-                </div>
-            </div>
-
-            <!-- Dynamic Playlist Select Zone 2 (via: Dynamic Playlists v4.7.1) -->
-            <div class="marantz-row" id="dynamic_playlist_row_z2" style="display: none;">
-                <label class="marantz-label" for="dynamic_playlist_z2">[% "PLUGIN_MARANTZHTTP_DYNAMIC_PLAYLIST_SELECT" | string %]</label>
-                <div class="marantz-info-col">
-                    <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_DYNAMIC_PLAYLIST_DESC' | string %]">i</span>
-                </div>
-                <div class="marantz-control" style="flex-wrap: nowrap; gap: 6px; align-items: center;">
-                    <select class="stdedit" name="pref_dynamic_playlist_z2" id="dynamic_playlist_z2" onchange="checkManualDynamicPl('z2', this.value)" style="width: 320px;">
-                        <option value="">-- [% "PLUGIN_MARANTZHTTP_NONE" | string %] --</option>
-                        [% FOREACH dpl = available_dynamic_playlists %]
-                            <option value="[% dpl.id %]" [% IF prefs.pref_dynamic_playlist_z2 == dpl.id || prefs.pref_dynamic_playlist_z2 == dpl.raw_name || prefs.pref_dynamic_playlist_z2 == dpl.clean_id %]selected[% END %]>[% dpl.title %]</option>
-                        [% END %]
-                        <option value="__CUSTOM__">[% "PLUGIN_MARANTZHTTP_ENTER_DYNAMIC_MANUALLY" | string %]</option>
-                    </select>
-                    <span id="dynamic_playlist_z2_custom_wrap" style="display: none; align-items: center;">
-                        <input type="text" class="stdedit" id="dynamic_playlist_z2_custom" placeholder="Bijv. topliedjes of dplccustom_topliedjes" style="width: 220px;">
-                        <input type="button" class="stdbtn" onclick="cancelCustomDynamicPl('z2')" value="[% 'PLUGIN_MARANTZHTTP_CHOOSE_FROM_LIST' | string %]" style="margin-left: 5px;">
-                    </span>
-                    <input type="button" class="stdbtn" onclick="refreshDynamicPlaylists(this)" value="[% 'PLUGIN_MARANTZHTTP_UPDATE_DYNAMIC_PLAYLISTS' | string %]" style="cursor: pointer; padding: 2px 8px;">
-                    <span id="dynamic_status_badge_z2" style="display: none; color: #15803d; font-size: 11px; font-weight: bold; margin-left: 6px;"></span>
-                </div>
-            </div>
-
-            <div class="marantz-row">
-                <label class="marantz-label" for="shuffle_z2">[% "PLUGIN_MARANTZHTTP_SHUFFLE_MODE" | string %]</label>
-                <div class="marantz-info-col"></div>
-                <div class="marantz-control">
-                    <select class="stdedit" name="pref_shuffle_z2" id="shuffle_z2" style="min-width: 180px;">
-                        <option value="0" [% IF !prefs.pref_shuffle_z2 || prefs.pref_shuffle_z2 == '0' %]selected[% END %]>[% "PLUGIN_MARANTZHTTP_SHUFFLE_OFF" | string %]</option>
-                        <option value="1" [% IF prefs.pref_shuffle_z2 == '1' %]selected[% END %]>[% "PLUGIN_MARANTZHTTP_SHUFFLE_SONGS" | string %]</option>
-                    </select>
-                </div>
-            </div>
-            <div class="marantz-row">
-                <label class="marantz-label" for="play_only_if_empty_z2">[% "PLUGIN_MARANTZHTTP_PLAY_ONLY_IF_EMPTY" | string %]</label>
-                <div class="marantz-info-col">
-                    <span class="marantz-info-icon" title="[% 'PLUGIN_MARANTZHTTP_PLAY_ONLY_IF_EMPTY_DESC' | string %]">i</span>
-                </div>
-                <div class="marantz-control">
-                    <input name="pref_play_only_if_empty_z2" id="play_only_if_empty_z2" value="1" type="checkbox" [% IF prefs.pref_play_only_if_empty_z2 %] checked [% END %]>
-                </div>
-            </div>
-        </fieldset>
-
-        <!-- Subgroup: Media-gedrag -->
-        <fieldset class="marantz-subgroup">
-            <legend>[% "PLUGIN_MARANTZHTTP_SECTION_MEDIA_BEHAVIOR" | string %]</legend>
-            <div class="marantz-row">
-                <label class="marantz-label" for="pause_on_off_or_source_z2">[% "PLUGIN_MARANTZHTTP_PAUSE_LABEL" | string %]</label>
-                <div class="marantz-info-col"></div>
-                <div class="marantz-control">
-                    <input name="pref_pause_on_off_or_source_z2" id="pause_on_off_or_source_z2" value="1" type="checkbox" [% IF prefs.pref_pause_on_off_or_source_z2 %] checked [% END %]>
-                </div>
-            </div>
-            <div class="marantz-row">
-                <label class="marantz-label" for="resume_on_source_z2">[% "PLUGIN_MARANTZHTTP_RESUME_LABEL" | string %]</label>
-                <div class="marantz-info-col"></div>
-                <div class="marantz-control">
-                    <input name="pref_resume_on_source_z2" id="resume_on_source_z2" value="1" type="checkbox" [% IF prefs.pref_resume_on_source_z2 %] checked [% END %]>
-                </div>
-            </div>
-        </fieldset>
-
-        <!-- Subgroup: Volumeinstellingen -->
-        <fieldset class="marantz-subgroup">
-            <legend>[% "PLUGIN_MARANTZHTTP_SECTION_VOLUME_SETTINGS" | string %]</legend>
-            <div class="marantz-row">
-                <label class="marantz-label" for="set_volume_on_power_z2">[% "PLUGIN_MARANTZHTTP_SET_VOLUME_LABEL" | string %]</label>
-                <div class="marantz-info-col"></div>
-                <div class="marantz-control">
-                    <input name="pref_set_volume_on_power_z2" id="set_volume_on_power_z2" value="1" type="checkbox" [% IF prefs.pref_set_volume_on_power_z2 %] checked [% END %]>
-                </div>
-            </div>
-            <div class="marantz-row">
-                <label class="marantz-label sub" for="power_volume_z2">[% "PLUGIN_MARANTZHTTP_POWER_VOLUME_LABEL" | string %]</label>
-                <div class="marantz-info-col"></div>
-                <div class="marantz-control">
-                    <input type="number" min="0" max="98" class="stdedit" name="pref_power_volume_z2" id="power_volume_z2" value="[% prefs.pref_power_volume_z2 || 30 %]" style="width: 70px;">
-                </div>
-            </div>
-        </fieldset>
-    </fieldset>
+    </div>
 </div>
 
 [% PROCESS settings/footer.html %]

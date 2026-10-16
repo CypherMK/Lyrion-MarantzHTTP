@@ -762,3 +762,107 @@ PLUGIN_MARANTZHTTP_ENTER_ROOM_PRESET_MANUALLY
 
 
 
+
+PLUGIN_MARANTZHTTP_TAB_RECEIVER_1
+	EN	Receiver 1 (Primary)
+	NL	Receiver 1 (Primair)
+	DE	Receiver 1 (Primär)
+	FR	Ampli 1 (Principal)
+	ES	Receptor 1 (Principal)
+	IT	Sintoamplificatore 1 (Principale)
+
+PLUGIN_MARANTZHTTP_TAB_RECEIVER_2
+	EN	Receiver 2 (Secondary)
+	NL	Receiver 2 (Secundair)
+	DE	Receiver 2 (Sekundär)
+	FR	Ampli 2 (Secondaire)
+	ES	Receptor 2 (Secundario)
+	IT	Sintoamplificatore 2 (Secondario)
+
+PLUGIN_MARANTZHTTP_RECEIVER_2_ENABLE
+	EN	Enable Receiver 2
+	NL	Receiver 2 inschakelen
+	DE	Receiver 2 aktivieren
+	FR	Activer le récepteur 2
+	ES	Habilitar receptor 2
+	IT	Abilita sintoamplificatore 2
+
+PLUGIN_MARANTZHTTP_RECEIVER_2_ENABLE_DESC
+	EN	Enable independent HTTP control and volume sync for a second Marantz / Denon receiver
+	NL	Schakel onafhankelijke HTTP-bediening en volumensynchronisatie in voor een 2e Marantz / Denon receiver
+	DE	Unabhängige HTTP-Steuerung und Lautstärke-Synchronisation für einen zweiten Marantz / Denon Receiver aktivieren
+	FR	Activez le contrôle HTTP indépendant et la synchronisation du volume pour un deuxième ampli Marantz / Denon
+	ES	Habilite el control HTTP independiente y sincronización de volumen para un segundo receptor Marantz / Denon
+	IT	Abilita il controllo HTTP indipendente e la sincronizzazione del volume per un secondo sintoamplificatore Marantz / Denon
+
+PLUGIN_MARANTZHTTP_R2_SECTION_GENERAL
+	EN	Receiver 2: General Network Settings
+	NL	Receiver 2: Algemene Netwerkinstellingen
+	DE	Receiver 2: Allgemeine Netzwerkeinstellungen
+	FR	Ampli 2 : Paramètres réseau généraux
+	ES	Receptor 2: Configuración general de red
+	IT	Sintoamplificatore 2: Impostazioni di rete generali
+
+PLUGIN_MARANTZHTTP_R2_SECTION_MAIN_ZONE
+	EN	Receiver 2: Main Zone (Zone 1)
+	NL	Receiver 2: Hoofdzone (Zone 1)
+	DE	Receiver 2: Hauptzone (Zone 1)
+	FR	Ampli 2 : Zone principale (Zone 1)
+	ES	Receptor 2: Zona principal (Zona 1)
+	IT	Sintoamplificatore 2: Zona principale (Zona 1)
+
+PLUGIN_MARANTZHTTP_R2_SECTION_ZONE_2
+	EN	Receiver 2: Zone 2
+	NL	Receiver 2: Zone 2
+	DE	Receiver 2: Zone 2
+	FR	Ampli 2 : Zone 2
+	ES	Receptor 2: Zona 2
+	IT	Sintoamplificatore 2: Zona 2
+
+PLUGIN_MARANTZHTTP_R2_IP_DESC
+	EN	Example: 192.168.1.101 (IP of your 2nd receiver)
+	NL	Bijvoorbeeld: 192.168.1.101 (IP-adres van uw 2e receiver)
+	DE	Zum Beispiel: 192.168.1.101 (IP-Adresse Ihres 2. Receivers)
+	FR	Exemple : 192.168.1.101 (Adresse IP de votre 2ème ampli)
+	ES	Ejemplo: 192.168.1.101 (IP de su segundo receptor)
+	IT	Esempio: 192.168.1.101 (IP del tuo secondo sintoamplificatore)
+
+PLUGIN_MARANTZHTTP_R2_PORT_DESC
+	EN	Default: 8080 (or 80 for newer HEOS-generation AVRs)
+	NL	Standaard: 8080 (of 80 voor nieuwere HEOS-generatie AVR's)
+	DE	Standard: 8080 (oder 80 für neuere HEOS-Generationen)
+	FR	Défaut : 8080 (ou 80 pour les modèles HEOS récents)
+	ES	Por defecto: 8080 (u 80 para modelos recientes con HEOS)
+	IT	Predefinito: 8080 (o 80 per modelli recenti con HEOS)
+
+PLUGIN_MARANTZHTTP_R2_MAC_Z1_DESC
+	EN	MAC address of the player dedicated to Receiver 2 Main Zone
+	NL	MAC-adres van de speler gekoppeld aan de Hoofdzone van Receiver 2
+	DE	MAC-Adresse des Players für die Hauptzone von Receiver 2
+	FR	Adresse MAC du lecteur dédié à la zone principale de l'ampli 2
+	ES	Dirección MAC del reproductor dedicado a la zona principal del receptor 2
+	IT	Indirizzo MAC del lettore dedicato alla zona principale del secondo sintoamplificatore
+
+PLUGIN_MARANTZHTTP_R2_MAC_Z2_DESC
+	EN	MAC address of the player dedicated to Receiver 2 Zone 2
+	NL	MAC-adres van de speler gekoppeld aan Zone 2 van Receiver 2
+	DE	MAC-Adresse des Players für Zone 2 von Receiver 2
+	FR	Adresse MAC du lecteur dédié à la zone 2 de l'ampli 2
+	ES	Dirección MAC del reproductor dedicado a la zona 2 del receptor 2
+	IT	Indirizzo MAC del lettore dedicato alla zona 2 del secondo sintoamplificatore
+
+PLUGIN_MARANTZHTTP_DETECT_RECEIVER_R2
+	EN	Detect Receiver 2 Capabilities
+	NL	Receiver 2 Detecteren
+	DE	Receiver 2 erkennen
+	FR	Détecter l'ampli 2
+	ES	Detectar receptor 2
+	IT	Rileva sintoamplificatore 2
+
+PLUGIN_MARANTZHTTP_RECEIVER_2_DISABLED_NOTE
+	EN	Receiver 2 is currently disabled. Check the box above to activate control for a second receiver.
+	NL	Receiver 2 is momenteel uitgeschakeld. Vink bovenstaande optie aan om een tweede receiver toe te voegen.
+	DE	Receiver 2 ist derzeit deaktiviert. Aktivieren Sie die Option oben, um einen zweiten Receiver hinzuzufügen.
+	FR	L'ampli 2 est actuellement désactivé. Cochez l'option ci-dessus pour ajouter un deuxième ampli.
+	ES	El receptor 2 está actualmente desactivado. Marque la casilla superior para activar el segundo receptor.
+	IT	Il secondo sintoamplificatore è disabilitato. Spunta la casella sopra per attivare un secondo sintoamplificatore.
