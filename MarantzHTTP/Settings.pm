@@ -26,13 +26,13 @@ sub page {
 
 sub prefs { 
     return ($prefs, qw(
-        ip port sync_volume poll_interval
+        ip port sync_volume poll_interval standby_poll_interval
         mac_z1 power_on_z1 source_z1 set_sound_mode_on_power_z1 sound_mode_z1 set_room_preset_on_power_z1 room_preset_z1 set_volume_on_power_z1 power_volume_z1 pause_on_off_or_source_z1 resume_on_source_z1 
         play_playlist_on_power_z1 playlist_type_z1 playlist_z1 dynamic_playlist_z1 shuffle_z1 play_only_if_empty_z1
         mac_z2 power_on_z2 source_z2 set_volume_on_power_z2 power_volume_z2 pause_on_off_or_source_z2 resume_on_source_z2 
         play_playlist_on_power_z2 playlist_type_z2 playlist_z2 dynamic_playlist_z2 shuffle_z2 play_only_if_empty_z2
 
-        r2_enabled r2_ip r2_port r2_sync_volume r2_poll_interval
+        r2_enabled r2_ip r2_port r2_sync_volume r2_poll_interval r2_standby_poll_interval
         r2_mac_z1 r2_power_on_z1 r2_source_z1 r2_set_sound_mode_on_power_z1 r2_sound_mode_z1 r2_set_room_preset_on_power_z1 r2_room_preset_z1 r2_set_volume_on_power_z1 r2_power_volume_z1 r2_pause_on_off_or_source_z1 r2_resume_on_source_z1
         r2_play_playlist_on_power_z1 r2_playlist_type_z1 r2_playlist_z1 r2_dynamic_playlist_z1 r2_shuffle_z1 r2_play_only_if_empty_z1
         r2_mac_z2 r2_power_on_z2 r2_source_z2 r2_set_volume_on_power_z2 r2_power_volume_z2 r2_pause_on_off_or_source_z2 r2_resume_on_source_z2
@@ -118,7 +118,7 @@ sub getAvailablePlaylists {
     my $now = time();
 
     # Return cached playlists if scanned recently (< 60s), ensuring 0ms page renders
-    if (!$force && $cached_playlists && scalar(@$cached_playlists) > 0 && ($now - $last_playlist_scan < 60)) {
+    if (!$force && $cached_playlists && scalar(@$cached_playlists) > 0 && ($now - $last_playlist_scan < 300)) {
         return $cached_playlists;
     }
 
@@ -214,7 +214,7 @@ sub getAvailableDynamicPlaylists {
     my $force = shift || 0;
     my $now = time();
 
-    if (!$force && $cached_dynamic_playlists && scalar(@$cached_dynamic_playlists) > 0 && ($now - $last_dynamic_scan < 60)) {
+    if (!$force && $cached_dynamic_playlists && scalar(@$cached_dynamic_playlists) > 0 && ($now - $last_dynamic_scan < 600)) {
         return $cached_dynamic_playlists;
     }
 

@@ -7,8 +7,10 @@ use base qw(Slim::Plugin::Base);
 use Slim::Control::Request;
 use Slim::Utils::Log;
 use Slim::Utils::Prefs;
+use Slim::Networking::SimpleAsyncHTTP;
+use Slim::Utils::Timers;
 
-our $VERSION = '2.0.0';
+our $VERSION = '2.1.0';
 
 # Initialize Lyrion / LMS Logger Category
 my $log = Slim::Utils::Log->addLogCategory({
@@ -25,6 +27,8 @@ $prefs->init({
     port                        => '8080',
     sync_volume                 => 1,
     poll_interval               => 2,
+    adaptive_polling            => 1,
+    standby_poll_interval       => 15,
 
     # Receiver 1 Zone 1 (Main Zone)
     mac_z1                      => '',
@@ -66,6 +70,7 @@ $prefs->init({
     r2_port                     => '8080',
     r2_sync_volume              => 1,
     r2_poll_interval            => 2,
+    r2_standby_poll_interval    => 15,
 
     # Receiver 2 Zone 1 (Main Zone)
     r2_mac_z1                   => '',
@@ -106,6 +111,19 @@ $prefs->init({
 my %syncing_clients;
 my %last_marantz_synced_vol;
 my %last_marantz_vol_sync_time;
+my %syncing_client_until;     # $mac => epoch timestamp deadline for loop suppression
+
+# Volume Outgoing Rate Limiter (Max 4 commands/sec to protect AVR micro-webserver)
+my %volume_pending_target;    # "$rec:$zone" => latest pending target volume
+my %volume_last_send_time;    # "$rec:$zone" => timestamp of last dispatched volume HTTP request
+my %volume_dispatch_timer;    # "$rec:$zone" => timer handle for pending coalesced dispatch
+
+# Polling In-Flight Guard & Offline Backoff Manager
+my %rec_poll_in_flight;       # "$rec:$zone" => 1 if currently awaiting HTTP response
+my %rec_fail_count;           # $rec => consecutive timeout/failure count
+my %rec_next_poll_time;       # $rec => epoch timestamp when next poll probe is allowed
+my %rec_last_poll_time;       # $rec => epoch timestamp of last completed poll
+my $active_poll_timer_handle; # Handle for current scheduled polling timer
 
 # Independent state tracking keyed by compound key "$rec:$zone" (e.g. "1:MV", "1:Z2", "2:MV", "2:Z2")
 my %receiver_power_state;     # 'ON' or 'STANDBY'
@@ -121,6 +139,10 @@ my %mismatch_counter;         # consecutive mismatch poll count
 my %match_counter;            # consecutive match poll count
 
 # Helper to check if debug logging is enabled via LMS logging settings (plugin.marantzhttp = DEBUG)
+sub _timeHires {
+    return eval { require Time::HiRes; Time::HiRes::time() } || time();
+}
+
 sub _isDebug {
     return ($log && $log->is_debug);
 }
@@ -550,6 +572,8 @@ sub ensurePowerAndSource {
     $last_poweron_time{$state_key} = $now;
     $zone_is_playing{$state_key} = 1;
     $zone_awaiting_resume{$state_key} = 0;
+    delete $rec_fail_count{$rec};
+    delete $rec_next_poll_time{$rec};
     $mismatch_counter{$state_key} = 0;
     $match_counter{$state_key} = 0;
 
@@ -1028,6 +1052,11 @@ sub volumeCallback {
         my $client_name = eval { $client->name() } || $mac;
 
         # Prevent circular feedback loops when volume is updated by Marantz sync
+        my $now_check = _timeHires();
+        if (defined $syncing_client_until{$mac} && $now_check < $syncing_client_until{$mac}) {
+            _debugLog("[MIXER LOOP GUARD] Volume change for $mac suppressed (active Marantz sync window).");
+            return;
+        }
         if ($syncing_clients{$mac}) {
             _debugLog("[MIXER LOOP GUARD] Volume change for $mac suppressed (originates from Marantz sync).");
             return;
@@ -1062,186 +1091,330 @@ sub volumeCallback {
             return;
         }
 
-        my $vol_formatted = sprintf("%02d", $volume);
-        my $url = "http://$ip:$port/goform/formiPhoneAppDirect.xml?$zone$vol_formatted";
-        _infoLog("[VOLUME OUT] LMS '$client_name' ($volume) -> Receiver $rec (Zone $zone): $url");
-        _sendHttpRequest($url);
+                _sendThrottledVolume($rec, $ip, $port, $zone, $volume, $client_name);
     }
+}
+
+sub _sendThrottledVolume {
+    my ($rec, $ip, $port, $zone, $volume, $client_name) = @_;
+    my $zone_key = "$rec:$zone";
+    my $now = _timeHires();
+    my $min_interval = 0.25; # Max 4 volume commands per second to protect AVR micro-webserver
+
+    $volume_pending_target{$zone_key} = $volume;
+
+    if (!defined $volume_last_send_time{$zone_key} || ($now - $volume_last_send_time{$zone_key} >= $min_interval)) {
+        _dispatchPendingVolume($rec, $ip, $port, $zone, $client_name);
+        return;
+    }
+
+    unless ($volume_dispatch_timer{$zone_key}) {
+        my $delay = $min_interval - ($now - $volume_last_send_time{$zone_key});
+        $delay = 0.05 if $delay < 0.05;
+
+        $volume_dispatch_timer{$zone_key} = Slim::Utils::Timers::setTimer(
+            undef,
+            $now + $delay,
+            sub {
+                delete $volume_dispatch_timer{$zone_key};
+                _dispatchPendingVolume($rec, $ip, $port, $zone, $client_name);
+            }
+        );
+    }
+}
+
+sub _dispatchPendingVolume {
+    my ($rec, $ip, $port, $zone, $client_name) = @_;
+    my $zone_key = "$rec:$zone";
+    return unless defined $volume_pending_target{$zone_key};
+
+    my $target_vol = delete $volume_pending_target{$zone_key};
+    $volume_last_send_time{$zone_key} = _timeHires();
+
+    my $vol_formatted = sprintf("%02d", $target_vol);
+    my $url = "http://$ip:$port/goform/formiPhoneAppDirect.xml?$zone$vol_formatted";
+    _infoLog("[VOLUME OUT] LMS '$client_name' ($target_vol) -> Receiver $rec (Zone $zone): $url");
+    _sendHttpRequest($url);
 }
 
 # --------------------------------------------------------------------------
 # Playback Monitoring & Polling Management
 # --------------------------------------------------------------------------
-sub shouldPollReceiver {
+# --------------------------------------------------------------------------
+# Smart Adaptive Polling Engine (v2.1.0)
+# Dynamic interval based on playback state, standby mode, and offline backoff
+# --------------------------------------------------------------------------
+sub _getReceiverPollInterval {
     my $rec = shift || 1;
     my $ip = _getTargetIp($rec);
     return 0 unless $ip;
-
     if ($rec == 2 && !$prefs->get('r2_enabled')) {
         return 0;
     }
 
-    # 1. Volume sync enabled
-    my $sync_vol = ($rec == 2) ? $prefs->get('r2_sync_volume') : $prefs->get('sync_volume');
-    return 1 if $sync_vol;
+    # 1. Respect offline backoff schedule if receiver is unresponsive
+    my $now = time();
+    if (defined $rec_next_poll_time{$rec} && $now < $rec_next_poll_time{$rec}) {
+        my $remaining = $rec_next_poll_time{$rec} - $now;
+        return ($remaining > 0) ? $remaining : 30;
+    }
 
-    # 2. Startup playlist enabled on Zone 1 or Zone 2
-    my $pl_z1 = _getZonePref($rec, 'MV', 'play_playlist_on_power');
-    my $pl_z2 = _getZonePref($rec, 'Z2', 'play_playlist_on_power');
-    return 1 if ($pl_z1 || $pl_z2);
+    # 2. Check if ANY zone on this receiver is actively PLAYING music
+    my $is_playing = 0;
+    my $is_awaiting_resume = 0;
+    for my $z ('MV', 'Z2') {
+        my $k = "$rec:$z";
+        $is_playing = 1 if ($zone_is_playing{$k});
+        $is_awaiting_resume = 1 if ($zone_awaiting_resume{$k});
+    }
 
-    # 3. Fail-safe auto-pause / auto-resume enabled on Zone 1 or Zone 2
-    my $pause_z1 = _getZonePref($rec, 'MV', 'pause_on_off_or_source');
-    my $resume_z1 = _getZonePref($rec, 'MV', 'resume_on_source');
-    my $pause_z2 = _getZonePref($rec, 'Z2', 'pause_on_off_or_source');
-    my $resume_z2 = _getZonePref($rec, 'Z2', 'resume_on_source');
-    return 1 if ($pause_z1 || $resume_z1 || $pause_z2 || $resume_z2);
-
-    # 4. Any client bound to this receiver is currently playing
+    # Verify through connected Squeezebox/Lyrion players
     my @clients = eval { Slim::Player::Client::clients() };
     for my $client (@clients) {
-        if ($client && $client->isPlaying()) {
-            my ($c_rec, $c_zone) = getClientBinding($client);
-            return 1 if ($c_rec && $c_rec == $rec);
+        next unless $client;
+        my ($c_rec, $c_zone) = getClientBinding($client);
+        if ($c_rec && $c_rec == $rec && $client->isPlaying()) {
+            $is_playing = 1;
+            last;
         }
     }
 
+    # TIER 1: ACTIVE PLAYBACK
+    # Fast 2s poll for instant volume dial sync and source switch auto-pause
+    if ($is_playing) {
+        my $fast_int = ($rec == 2) ? int($prefs->get('r2_poll_interval') || 2) : int($prefs->get('poll_interval') || 2);
+        $fast_int = 2 if $fast_int < 1;
+        $fast_int = 10 if $fast_int > 10;
+        return $fast_int;
+    }
+
+    # TIER 2: AUTO-PAUSED / AWAITING RESUME
+    # User switched receiver input away from Lyrion; check every 5s to resume
+    if ($is_awaiting_resume) {
+        return 5;
+    }
+
+    # TIER 3: RECEIVER IS POWERED ON BUT NOT STREAMING
+    my $is_on = 0;
+    for my $z ('MV', 'Z2') {
+        my $k = "$rec:$z";
+        if (defined $receiver_power_state{$k} && $receiver_power_state{$k} eq 'ON') {
+            $is_on = 1;
+            last;
+        }
+    }
+    if ($is_on) {
+        return 8; # 8s moderate polling while AVR is on but idle
+    }
+
+    # TIER 4: RECEIVER IN STANDBY / OFF (OR PLAYER STOPPED)
+    # Check if user has "Play playlist on receiver power-on" enabled
+    my $has_power_playlist = 0;
+    for my $z ('MV', 'Z2') {
+        if (_getZonePref($rec, $z, 'play_playlist_on_power')) {
+            $has_power_playlist = 1;
+            last;
+        }
+    }
+
+    # If playlist auto-play on power is enabled: poll at slow 15s interval to detect remote power button
+    if ($has_power_playlist) {
+        my $standby_int = ($rec == 2) 
+            ? int($prefs->get('r2_standby_poll_interval') || 15) 
+            : int($prefs->get('standby_poll_interval') || 15);
+        $standby_int = 15 if $standby_int < 5;
+        return $standby_int;
+    }
+
+    # If auto-playlist is NOT enabled and music is STOPPED:
+    # ZERO POLLING! Polling stops completely. LMS player events will resume polling on-demand.
     return 0;
 }
 
+sub _getNextGlobalPollInterval {
+    my $min_int = 0;
+    for my $rec (1, 2) {
+        next if ($rec == 2 && !$prefs->get('r2_enabled'));
+        my $int = _getReceiverPollInterval($rec);
+        if ($int > 0) {
+            $min_int = ($min_int == 0 || $int < $min_int) ? $int : $min_int;
+        }
+    }
+    return $min_int;
+}
+
+sub shouldPollReceiver {
+    my $rec = shift || 1;
+    return (_getReceiverPollInterval($rec) > 0) ? 1 : 0;
+}
+
 sub shouldPollMarantz {
-    return (shouldPollReceiver(1) || shouldPollReceiver(2)) ? 1 : 0;
+    return (_getNextGlobalPollInterval() > 0) ? 1 : 0;
 }
 
 sub checkAndManagePolling {
-    my $should_poll = shouldPollMarantz();
-    if ($should_poll) {
-        _debugLog("[POLL MANAGER] Active receiver and player configuration. Ensuring background polling timer is running.");
-        startPollingTimer();
+    my $immediate_tick = shift || 0;
+    my $next_int = _getNextGlobalPollInterval();
+
+    if ($next_int > 0) {
+        if ($immediate_tick) {
+            _debugLog("[POLL MANAGER] Immediate poll requested via player event. Polling now.");
+            pollActiveMarantzZones();
+        }
+        _debugLog("[POLL MANAGER] Scheduling smart adaptive poll in $next_int s.");
+        scheduleNextPollTimer($next_int);
     } else {
-        _debugLog("[POLL MANAGER] No active player or sync enabled. Stopping background polling timer.");
+        _debugLog("[POLL MANAGER] All receivers idle/standby with no power triggers. Background polling PAUSED (0 req/s).");
         stopPollingTimer();
     }
 }
 
-sub startPollingTimer {
+sub scheduleNextPollTimer {
+    my $interval = shift;
+    $interval = _getNextGlobalPollInterval() unless defined $interval;
+    return stopPollingTimer() if ($interval <= 0);
+
     stopPollingTimer();
-    return unless shouldPollMarantz();
+    my $now = _timeHires();
+    $active_poll_timer_handle = Slim::Utils::Timers::setTimer(undef, $now + $interval, \&pollTimerCallback);
+}
 
-    my $interval = int($prefs->get('poll_interval') || 2);
-    if ($prefs->get('r2_enabled')) {
-        my $int2 = int($prefs->get('r2_poll_interval') || 2);
-        $interval = $int2 if ($int2 < $interval);
-    }
-    $interval = 2 if $interval < 1;
-    $interval = 10 if $interval > 10;
-
-    my $now = eval { require Time::HiRes; Time::HiRes::time() } || time();
-    require Slim::Utils::Timers;
-    Slim::Utils::Timers::setTimer(undef, $now + $interval, \&pollTimerCallback);
+sub startPollingTimer {
+    checkAndManagePolling();
 }
 
 sub stopPollingTimer {
-    require Slim::Utils::Timers;
-    eval { Slim::Utils::Timers::killTimers(undef, \&pollTimerCallback); };
+    if ($active_poll_timer_handle) {
+        eval { Slim::Utils::Timers::killTimers(undef, \&pollTimerCallback); };
+        $active_poll_timer_handle = undef;
+    }
 }
 
 sub pollTimerCallback {
-    unless (shouldPollMarantz()) {
-        _debugLog("[POLL TIMER] Condition not met during tick. Polling paused.");
-        return;
+    my $now = time();
+    
+    # Poll each receiver whose interval has matured
+    for my $rec (1, 2) {
+        next if ($rec == 2 && !$prefs->get('r2_enabled'));
+        my $rec_int = _getReceiverPollInterval($rec);
+        next if ($rec_int <= 0);
+
+        my $last_time = $rec_last_poll_time{$rec} || 0;
+        if (!defined $rec_last_poll_time{$rec} || ($now - $last_time >= ($rec_int - 0.5))) {
+            $rec_last_poll_time{$rec} = $now;
+            _pollReceiverZones($rec);
+        }
     }
 
-    pollActiveMarantzZones();
-
-    my $interval = int($prefs->get('poll_interval') || 2);
-    if ($prefs->get('r2_enabled')) {
-        my $int2 = int($prefs->get('r2_poll_interval') || 2);
-        $interval = $int2 if ($int2 < $interval);
+    # Reschedule next tick based on lowest active interval
+    my $next_int = _getNextGlobalPollInterval();
+    if ($next_int > 0) {
+        scheduleNextPollTimer($next_int);
+    } else {
+        stopPollingTimer();
     }
-    $interval = 2 if $interval < 1;
-    $interval = 10 if $interval > 10;
-
-    my $now = eval { require Time::HiRes; Time::HiRes::time() } || time();
-    require Slim::Utils::Timers;
-    Slim::Utils::Timers::setTimer(undef, $now + $interval, \&pollTimerCallback);
 }
 
 # --------------------------------------------------------------------------
 # Volume Sync & Status Polling: Marantz -> Lyrion
 # --------------------------------------------------------------------------
-sub pollActiveMarantzZones {
-    # 1. Receiver 1
-    if (shouldPollReceiver(1)) {
-        my $ip1 = _getTargetIp(1);
-        my $port1 = _getTargetPort(1);
-        if ($ip1) {
-            my $client_r1_z1 = _getClientForReceiverZone(1, 'MV');
-            my $client_r1_z2 = _getClientForReceiverZone(1, 'Z2');
+sub _pollReceiverZones {
+    my $rec = shift || 1;
+    my $ip = _getTargetIp($rec);
+    my $port = _getTargetPort($rec);
+    return unless $ip;
 
-            if ($client_r1_z1) {
-                _debugLog("[POLL OUT] Polling Receiver 1 Main Zone XML status from $ip1:$port1...");
-                _queryMarantzStatus(1, $ip1, $port1, 'MV', 'formMainZone_MainZoneXmlStatusLite.xml', $client_r1_z1);
-            }
-            if ($client_r1_z2 && ($prefs->get('mac_z2') || $prefs->get('power_on_z2') || $prefs->get('play_playlist_on_power_z2'))) {
-                _debugLog("[POLL OUT] Polling Receiver 1 Zone 2 XML status from $ip1:$port1...");
-                _queryMarantzStatus(1, $ip1, $port1, 'Z2', 'formZone2_Zone2XmlStatusLite.xml', $client_r1_z2);
-            }
-        }
+    my $client_z1 = _getClientForReceiverZone($rec, 'MV');
+    my $client_z2 = _getClientForReceiverZone($rec, 'Z2');
+
+    if ($client_z1) {
+        _debugLog("[POLL OUT] Polling Receiver $rec Main Zone status from $ip:$port...");
+        _queryMarantzStatus($rec, $ip, $port, 'MV', 'formMainZone_MainZoneXmlStatusLite.xml', $client_z1);
     }
+    
+    my $has_z2_config = ($rec == 2)
+        ? ($prefs->get('r2_mac_z2') || $prefs->get('r2_power_on_z2') || $prefs->get('r2_play_playlist_on_power_z2'))
+        : ($prefs->get('mac_z2')    || $prefs->get('power_on_z2')    || $prefs->get('play_playlist_on_power_z2'));
 
-    # 2. Receiver 2 (Independent)
-    if (_isReceiverEnabled(2) && shouldPollReceiver(2)) {
-        my $ip2 = _getTargetIp(2);
-        my $port2 = _getTargetPort(2);
-        if ($ip2) {
-            my $client_r2_z1 = _getClientForReceiverZone(2, 'MV');
-            my $client_r2_z2 = _getClientForReceiverZone(2, 'Z2');
+    if ($client_z2 && $has_z2_config) {
+        _debugLog("[POLL OUT] Polling Receiver $rec Zone 2 status from $ip:$port...");
+        _queryMarantzStatus($rec, $ip, $port, 'Z2', 'formZone2_Zone2XmlStatusLite.xml', $client_z2);
+    }
+}
 
-            if ($client_r2_z1) {
-                _debugLog("[POLL OUT] Polling Receiver 2 Main Zone XML status from $ip2:$port2...");
-                _queryMarantzStatus(2, $ip2, $port2, 'MV', 'formMainZone_MainZoneXmlStatusLite.xml', $client_r2_z1);
-            }
-            if ($client_r2_z2 && ($prefs->get('r2_mac_z2') || $prefs->get('r2_power_on_z2') || $prefs->get('r2_play_playlist_on_power_z2'))) {
-                _debugLog("[POLL OUT] Polling Receiver 2 Zone 2 XML status from $ip2:$port2...");
-                _queryMarantzStatus(2, $ip2, $port2, 'Z2', 'formZone2_Zone2XmlStatusLite.xml', $client_r2_z2);
-            }
-        }
+sub pollActiveMarantzZones {
+    for my $r (1, 2) {
+        next if ($r == 2 && !$prefs->get('r2_enabled'));
+        _pollReceiverZones($r) if shouldPollReceiver($r);
     }
 }
 
 sub _queryMarantzStatus {
     my ($rec, $ip, $port, $zone, $endpoint, $client) = @_;
+    my $poll_key = "$rec:$zone";
+
+    # Guard 1: In-flight overlapping request lock
+    if ($rec_poll_in_flight{$poll_key}) {
+        _debugLog("[POLL GUARD] Poll for Receiver $rec Zone $zone skipped: previous request in flight.");
+        return;
+    }
+
+    # Guard 2: Offline backoff schedule
+    my $now = time();
+    if (defined $rec_next_poll_time{$rec} && $now < $rec_next_poll_time{$rec}) {
+        _debugLog("[POLL BACKOFF] Receiver $rec in offline backoff (" . ($rec_next_poll_time{$rec} - $now) . "s remaining). Skipping poll.");
+        return;
+    }
+
+    $rec_poll_in_flight{$poll_key} = 1;
     my $url = "http://$ip:$port/goform/$endpoint";
 
-    require Slim::Networking::SimpleAsyncHTTP;
     my $http = Slim::Networking::SimpleAsyncHTTP->new(
         sub {
             my $res = shift;
+            delete $rec_poll_in_flight{$poll_key};
+            $rec_fail_count{$rec} = 0;
+            delete $rec_next_poll_time{$rec};
+
             my $content = eval { $res->content() } || eval { $res->result() } || '';
             _debugLog("[POLL RESP] Receiver $rec: Received XML status for Zone $zone (" . length($content) . " bytes)");
             _handleMarantzXmlResponse($rec, $content, $zone, $client);
         },
         sub {
             my ($http, $error) = @_;
-            _debugLog("[POLL ERROR] Receiver $rec: Zone $zone XML query ($endpoint) failed: " . ($error || 'Network error'));
-            if ($endpoint =~ /Lite\.xml$/) {
+            delete $rec_poll_in_flight{$poll_key};
+            $rec_fail_count{$rec} = ($rec_fail_count{$rec} || 0) + 1;
+
+            _debugLog("[POLL ERROR] Receiver $rec: Zone $zone query failed (fail count: $rec_fail_count{$rec}): " . ($error || 'Network error'));
+
+            if ($rec_fail_count{$rec} >= 3) {
+                $rec_next_poll_time{$rec} = time() + 30;
+                _warnLog("[POLL OFFLINE] Receiver $rec unresponsive after 3 attempts. Backing off polling to 30s.");
+                return;
+            }
+
+            if ($endpoint =~ /Lite\.xml$/ && ($error || '') !~ /(?:timed? ?out|unreachable|refused)/i) {
                 my $fallback_endpoint = $endpoint;
                 $fallback_endpoint =~ s/Lite\.xml$/\.xml/;
                 my $fallback_url = "http://$ip:$port/goform/$fallback_endpoint";
+
+                $rec_poll_in_flight{$poll_key} = 1;
                 my $http_fallback = Slim::Networking::SimpleAsyncHTTP->new(
                     sub {
                         my $res2 = shift;
+                        delete $rec_poll_in_flight{$poll_key};
                         my $c2 = eval { $res2->content() } || eval { $res2->result() } || '';
                         _handleMarantzXmlResponse($rec, $c2, $zone, $client);
                     },
-                    sub {},
-                    { timeout => 3 }
+                    sub {
+                        delete $rec_poll_in_flight{$poll_key};
+                    },
+                    { timeout => 2 }
                 );
                 $http_fallback->get($fallback_url);
             }
         },
-        { timeout => 3 }
+        { timeout => 2.5 }
     );
     $http->get($url);
 }
@@ -1249,6 +1422,19 @@ sub _queryMarantzStatus {
 # --------------------------------------------------------------------------
 # XML Tag Value Extractor Helper
 # --------------------------------------------------------------------------
+sub _parseMarantzXmlFast {
+    my $xml = shift;
+    return {} unless defined $xml && length($xml);
+
+    my %tags;
+    while ($xml =~ /<([a-zA-Z0-9_]+)\b[^>]*>(?:\s*<value\b[^>]*>)?([^<]*)(?:<\/value>\s*)?<\/\1>/gs) {
+        my ($tag, $val) = ($1, $2);
+        $val =~ s/^\s+|\s+$//g;
+        $tags{lc($tag)} = $val if length($val);
+    }
+    return \%tags;
+}
+
 sub _extractXmlTagValue {
     my ($xml, $tag) = @_;
     return undef unless defined $xml && defined $tag;
@@ -1275,18 +1461,19 @@ sub _handleMarantzXmlResponse {
     my $client_name = eval { $client->name() } || $client->id() || 'player';
     my $state_key = "$rec:$zone";
 
-    # Extract Power status
-    my $raw_power = ($zone eq 'Z2')
-        ? (_extractXmlTagValue($content, 'Zone2Power') // _extractXmlTagValue($content, 'zone2Power') // _extractXmlTagValue($content, 'zonePower') // _extractXmlTagValue($content, 'Power'))
-        : (_extractXmlTagValue($content, 'ZonePower')  // _extractXmlTagValue($content, 'zonePower')  // _extractXmlTagValue($content, 'Power'));
+    # Fast single-pass token extraction
+    my $xml_data = _parseMarantzXmlFast($content);
 
+    # Extract Power status via fast O(1) hash lookup with fallback
+    my $raw_power = ($zone eq 'Z2')
+        ? ($xml_data->{zone2power} // $xml_data->{zonepower} // $xml_data->{power} // _extractXmlTagValue($content, 'Zone2Power'))
+        : ($xml_data->{zonepower}  // $xml_data->{power}      // _extractXmlTagValue($content, 'ZonePower'));
     $raw_power = uc($raw_power) if defined $raw_power;
 
-    # Extract Input Source
+    # Extract Input Source via fast O(1) hash lookup with fallback
     my $raw_input = ($zone eq 'Z2')
-        ? (_extractXmlTagValue($content, 'Zone2InputFuncSelect') // _extractXmlTagValue($content, 'zone2InputFuncSelect') // _extractXmlTagValue($content, 'InputFuncSelect'))
-        : (_extractXmlTagValue($content, 'InputFuncSelect'));
-
+        ? ($xml_data->{zone2inputfuncselect} // $xml_data->{inputfuncselect} // _extractXmlTagValue($content, 'Zone2InputFuncSelect'))
+        : ($xml_data->{inputfuncselect}      // _extractXmlTagValue($content, 'InputFuncSelect'));
     $raw_input = uc($raw_input) if defined $raw_input;
 
     # Extract Surround / Sound Mode (Zone 1)
@@ -1399,11 +1586,11 @@ sub _handleMarantzXmlResponse {
     # --------------------------------------------------------------------------
     my $sync_vol_enabled = ($rec == 2) ? $prefs->get('r2_sync_volume') : $prefs->get('sync_volume');
     if ($sync_vol_enabled) {
-        my $raw_vol_text = ($zone eq 'Z2')
-            ? (_extractXmlTagValue($content, 'Zone2Volume') // _extractXmlTagValue($content, 'zone2Volume') // _extractXmlTagValue($content, 'ZoneVolume') // _extractXmlTagValue($content, 'zoneVolume') // _extractXmlTagValue($content, 'MasterVolume') // _extractXmlTagValue($content, 'Volume'))
-            : (_extractXmlTagValue($content, 'MasterVolume') // _extractXmlTagValue($content, 'MasterVolumeDisp') // _extractXmlTagValue($content, 'zoneVolume') // _extractXmlTagValue($content, 'ZoneVolume') // _extractXmlTagValue($content, 'Volume'));
+                my $raw_vol_text = ($zone eq 'Z2')
+            ? ($xml_data->{zone2volume} // $xml_data->{zonevolume} // $xml_data->{mastervolume} // $xml_data->{volume} // _extractXmlTagValue($content, 'Zone2Volume'))
+            : ($xml_data->{mastervolume} // $xml_data->{mastervolumedisp} // $xml_data->{zonevolume} // $xml_data->{volume} // _extractXmlTagValue($content, 'MasterVolume'));
 
-        my $vol_display = _extractXmlTagValue($content, 'VolumeDisplay');
+        my $vol_display = $xml_data->{volumedisplay} // _extractXmlTagValue($content, 'VolumeDisplay');
         my $is_relative = (defined $vol_display && uc($vol_display) eq 'RELATIVE') ? 1 : 0;
 
         if (defined $raw_vol_text) {
@@ -1445,17 +1632,19 @@ sub _handleMarantzXmlResponse {
                     $mac =~ s/[^a-f0-9]//g;
 
                     _infoLog("[VOLUME SYNC] Receiver $rec ($vol) -> LMS '$client_name' (was $current_vol). Updating LMS slider.");
-                    $syncing_clients{$mac} = 1;
+                                        $syncing_clients{$mac} = 1;
                     $last_marantz_synced_vol{$mac} = $vol;
                     $last_marantz_vol_sync_time{$mac} = time();
+                    my $now_hires = _timeHires();
+                    $syncing_client_until{$mac} = $now_hires + 1.8;
 
                     eval { $client->execute(['mixer', 'volume', $vol]); };
                     eval { $client->volume($vol); };
 
-                    my $now_hires = eval { require Time::HiRes; Time::HiRes::time() } || time();
-                    require Slim::Utils::Timers;
-                    Slim::Utils::Timers::setTimer(undef, $now_hires + 1.5, sub {
-                        $syncing_clients{$mac} = 0;
+                    Slim::Utils::Timers::setTimer(undef, $now_hires + 1.8, sub {
+                        if (_timeHires() >= ($syncing_client_until{$mac} || 0)) {
+                            $syncing_clients{$mac} = 0;
+                        }
                     });
                 }
             }
